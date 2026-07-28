@@ -1,7 +1,7 @@
 # Handover
 
 For an agent picking up Task Master with no prior context. Written 2026-07-28,
-after phase 1.
+after phase 2.
 
 ## Read these first, in this order
 
@@ -18,17 +18,20 @@ marked in place with a date and a reason. Trust the current text.
 
 ## State
 
-Branch `build/task-master`, three commits ahead of `main`, working tree clean.
+Branch `build/task-master`, seven commits ahead of `main`, working tree clean,
+pushed. Open PR: #1, phases 0 to 2, carrying a self-review as a comment.
 
 | Phase | Status |
 | --- | --- |
 | 0, scaffold | Complete, gate passed 2026-07-28. |
-| 1, parse and serialise | Complete, gate passed. 236 tests green. |
-| 2 onwards | Not started. |
+| 1, parse and serialise | Complete, gate passed. |
+| 2, indexing | Complete, gate passed 2026-07-28. 254 tests green. |
+| 3 onwards | Not started. |
 
 ```
 src/
-  main.ts                  plugin entry, ribbon, command, activateView
+  main.ts                  plugin entry, ribbon, commands, the dev dump command
+  settings.ts              defaults only; the settings tab lands in phase 4
   view/
     TaskMasterView.ts      ItemView shell, mounts the Svelte root
     App.svelte             placeholder, renders "Task Master"
@@ -37,6 +40,10 @@ src/
     tokens.ts              the lexer: one reader per metadata token
     parse.ts               line -> Task
     serialise.ts           Task -> line
+    paths.ts               excludedPaths matching, at a folder boundary
+    summarise.ts           counts by status, tag and file, with subtag rollup
+  data/
+    TaskIndex.ts           scan, incremental update, emit
 tests/
   corpus.ts                the fixture loader, used by every suite
   corpus.test.ts           guards the fixture itself
@@ -44,25 +51,30 @@ tests/
   roundtrip.test.ts        the corpus test, one assertion per line
   parse.test.ts            token semantics, plus composition cross-checks
   parse.robustness.test.ts fuzz over derived malformed input
+  paths.test.ts            excludedPaths edge cases
+  summarise.test.ts        counting and subtag rollup
 ```
 
 ## What blocks you right now
 
-Nothing blocks the code. One thing is waiting on Jon before anything can be
-pushed.
+Nothing blocks the code. Phase 3 is next, per PLAN.md.
 
-**The remote has never been pushed to.** `origin` points at
-`github.com/jonyardley/obsidian-task-master`, which is **public**. Commits
-`b9d2881` through `7df876e` still contain the original verbatim capture of the
-vault in `tests/fixtures/vault-corpus.txt`, and HEAD does not. A prepared
-`git filter-branch` swaps the synthetic fixture into every commit and
-pseudonymises the docs; backups sit on `backup/pre-scrub-main` and
-`backup/pre-scrub-build`. **Do not push, and do not add a second remote, until
-that has run and you have checked the history yourself.**
+Two things to know before you touch git or the remote:
 
-Phase 0's gate passed on 2026-07-28: the plugin is enabled in the vault, loads
-with a clean console, and the ribbon icon opens a full-page tab reading "Task
-Master". Phase 2's gate needs the same running plugin, so it is now reachable.
+1. **`backup/pre-scrub-main` and `backup/pre-scrub-build` hold the original
+   verbatim capture of Jon's vault**, complete with client and colleague names.
+   They are local-only and `origin` is clean, verified commit by commit. **Never
+   `git push --all` or `--mirror` in this repository**, and delete or bundle those
+   refs once you are confident the scrub is right.
+2. **Read "Nothing from the real vault goes in this repository" in CLAUDE.md
+   before adding a test case or writing a commit message.** The remote is public.
+
+Phase 2's gate passed against the live vault on 2026-07-28: 80 open, 24 done, 104
+indexed across 5 files, and an edit to a Daily Note reindexed that file without a
+reload. 80 rather than the 81 that `grep` reports, because `excludedPaths` drops
+the illustrative task in `Settings/_Vault Guide.md`. Every open-task figure in
+DESIGN.md and in PLAN.md below phase 2 is a vault count and reads one lower in the
+view; the phase 3 and 4 gates carry the adjusted numbers.
 
 ## Decisions taken since the design was approved
 
@@ -127,7 +139,7 @@ Other things worth knowing before you edit the parser:
 
 ## The test suite, and what each part is for
 
-`npm test` — 236 tests, under a second.
+`npm test` — 254 tests, under a second.
 
 - `roundtrip.test.ts` is the one DESIGN.md calls "the most important correctness
   property in the system". One assertion per corpus line so a failure names the
@@ -170,7 +182,7 @@ Each of these cost time to find. None is obvious.
 ## Commands
 
 ```bash
-npm test                # 236 tests
+npm test                # 254 tests
 npm run check           # tsc over src, tsc over tests, svelte-check
 npm run dev             # watch build, output lands in the vault via the symlink
 npm run build           # check, then a minified production bundle

@@ -552,12 +552,15 @@ src/
 
   model/                   pure. no Obsidian imports. all the tests live here.
     types.ts               Task, GroupDef, StoreData, Priority, TaskStatus
+    tokens.ts              the lexer: one reader per metadata token
     parse.ts               string -> Task
     serialise.ts           Task -> string
     mutate.ts              setStatus, setPriority, setDate, setLaneTag, setBody
     rank.ts                sparse rank allocation and renormalisation
     group.ts               assign tasks to groups, resolve multi-lane conflicts
     filter.ts              filter, search, sort, assemble sections
+    paths.ts               excludedPaths matching, at a folder boundary
+    summarise.ts           counts by status, tag and file, with subtag rollup
 
   data/                    the only place that touches the vault.
     TaskIndex.ts           scan, incremental update, emit snapshots
@@ -711,6 +714,12 @@ Those counts are the real day-one state of the vault, and they are the shape of
 the problem: five sixths of the open work has no lane. Unsorted is the working
 queue, not an error state, so it renders expanded by default while the populated
 lanes above it stay short.
+
+*Amended 2026-07-28, following the phase 2 gate. Unsorted renders **69**, not 70.
+The counts here and in section 1.1 are vault counts; the view applies
+`excludedPaths`, which drops the illustrative task in `Settings/_Vault Guide.md`.
+That task is unlaned, so the whole difference lands on Unsorted. The phase 3 and 4
+gates in PLAN.md carry the adjusted figures.*
 
 ### 6.3 Task row
 

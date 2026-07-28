@@ -35,18 +35,19 @@ src/
   main.ts                  plugin entry: registerView, commands, ribbon, settings
   controller.ts            the only thing the view calls; owns Index, Writer,
                            Store and the one-deep undo record
+  settings.ts              defaults; the settings tab lands in phase 4
   model/                   pure. no Obsidian imports. all the tests live here.
     types.ts               Task, Segment, GroupDef, StoreData
     tokens.ts              the lexer: one reader per metadata token
     parse.ts               line -> Task
     serialise.ts           Task -> line
+    paths.ts               excludedPaths matching, at a folder boundary
+    summarise.ts           counts by status, tag and file, with subtag rollup
   data/                    the only place that touches the vault
     TaskIndex.ts           scan, incremental update, emit snapshots
-    TaskWriter.ts          resolve line by block ID, vault.process, write queue
-    Store.ts               loadData/saveData, migrations, GC
   view/
     TaskMasterView.ts      ItemView shell, mounts the Svelte root
-    App.svelte             toolbar + group sections + done section
+    App.svelte             placeholder, renders "Task Master"
 tests/
   fixtures/vault-corpus.txt   105 task lines, invented, see DESIGN.md 4.3
   corpus.ts                the fixture loader, used by every suite
@@ -55,6 +56,8 @@ tests/
   roundtrip.test.ts        the corpus test, one assertion per line
   parse.test.ts            token semantics, plus composition cross-checks
   parse.robustness.test.ts fuzz over derived malformed input
+  paths.test.ts            excludedPaths edge cases
+  summarise.test.ts        counting and subtag rollup
 ```
 
 Full intended layout is DESIGN.md section 5.1. Modules not yet listed above do
@@ -72,7 +75,7 @@ claim about the native compiler. Revisit when svelte-check does.
 ## Commands
 
 ```bash
-npm test                # Vitest, currently 236 tests, under a second
+npm test                # Vitest, currently 254 tests, under a second
 npm run test:watch      # the same, watching
 npm run check           # tsc over src, tsc over tests, then svelte-check
 npm run dev             # watch build, output lands in the vault via the symlink
@@ -218,7 +221,7 @@ layer is pure and is where all the risk lives. The suite runs in under a
 second, so there is no excuse for red-green-refactor slipping to
 "implement, then retrofit tests".
 
-The five suites and what each is for:
+The seven suites and what each is for:
 
 - `roundtrip.test.ts` proves the round-trip guarantee. One assertion per corpus
   line so a failure names the line.
@@ -238,6 +241,9 @@ The five suites and what each is for:
   with a guard asserting the suite did not pass vacuously, because its helper
   returns null both for "refused" and for "round-tripped". Keep that guard.
 - `corpus.test.ts` guards the fixture itself.
+- `paths.test.ts` and `summarise.test.ts` cover the two pure helpers `TaskIndex`
+  leans on, which is how any of the indexing logic gets automated coverage at
+  all.
 
 **Run `npm test` before claiming anything complete, and paste the real output.**
 "204 tests pass" from memory is not evidence. When skipping tests, say so in the
@@ -340,9 +346,12 @@ See `HANDOVER.md` for the live picture. As of 2026-07-28:
 - Phase 0 complete, gate passed. The plugin is enabled in the vault, loads with
   a clean console, and the ribbon icon opens a full-page tab reading "Task
   Master".
-- Phase 1 complete, gate passed, 236 tests green.
-- Phase 2, indexing, is next and now unblocked.
-- **Nothing has been pushed.** The remote is public and the pre-HEAD commits
-  still hold the original vault capture. See HANDOVER.md before pushing.
+- Phase 1 complete, gate passed.
+- Phase 2 complete, gate passed against the live vault: 80 open, 24 done, 104
+  indexed. 254 tests green.
+- Phase 3, the read-only view, is next.
+- The remote is public and history has been scrubbed and pushed. The local
+  `backup/pre-scrub-*` refs still hold the original capture, so never
+  `git push --all`. See HANDOVER.md.
 - The corpus fixture was replaced with invented content on 2026-07-28 so the
   repository could be public. See DESIGN.md section 4.3.

@@ -9,20 +9,19 @@ export default class TaskMasterPlugin extends Plugin {
   private scanned = false;
 
   override async onload(): Promise<void> {
-    // Settings are not persisted until phase 4, so the defaults stand in.
+    // FIXME(#3): defaults stand in until Store lands in phase 4.
     this.index = new TaskIndex(this.app, () => DEFAULT_SETTINGS.excludedPaths);
     this.addChild(this.index);
 
-    // Temporary, for the phase 2 gate: makes the incremental path observable.
-    // Naming the file and its own count is what distinguishes "the handler
-    // fired" from "the file was actually reindexed", since a text edit leaves
-    // the vault-wide total unchanged.
-    // Remove with the dump command once the view re-renders on change.
+    // FIXME(#2): temporary, for the phase 2 gate. Naming the file distinguishes
+    // "the handler fired" from "the file was reindexed", since a text edit leaves
+    // the vault-wide total unchanged either way.
     this.register(
       this.index.onChange((path) => {
-        const where = path === undefined ? 'whole vault' : path;
-        const count = path === undefined ? this.index.snapshot().length : this.index.tasksIn(path).length;
-        console.log(`[task-master] reindexed ${where}: ${count} tasks, ${this.index.snapshot().length} total`);
+        const total = this.index.snapshot().length;
+        const scope =
+          path === undefined ? 'whole vault' : `${path}: ${this.index.tasksIn(path).length} tasks`;
+        console.log(`[task-master] reindexed ${scope}, ${total} total`);
       }),
     );
 
@@ -49,21 +48,18 @@ export default class TaskMasterPlugin extends Plugin {
     });
   }
 
-  /**
-   * Temporary, for the phase 2 gate in PLAN.md. Remove once the view renders the
-   * index and the counts can be read off the screen instead.
-   */
+  /** FIXME(#2): temporary, for the phase 2 gate in PLAN.md. */
   private async dumpIndexStats(): Promise<void> {
-    // Scan once only. Re-scanning on every dump would mask a broken incremental
-    // handler, which is half of what the phase 2 gate is checking.
+    // Scan once only: re-scanning per dump would mask a broken incremental
+    // handler, which is half of what the phase 2 gate checks.
     if (!this.scanned) {
-      await this.index.scanVault();
       this.scanned = true;
+      await this.index.scanVault();
     }
     const tasks = this.index.snapshot();
     const summary = summariseTasks(tasks);
     // The tag figures in DESIGN.md section 1.1 count open tasks only, so an
-    // all-status rollup cannot be compared against them directly.
+    // all-status rollup cannot be compared against them.
     const openSummary = summariseTasks(tasks.filter((task) => task.status === 'open'));
 
     console.log('[task-master] index stats', {

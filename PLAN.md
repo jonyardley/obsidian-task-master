@@ -171,10 +171,16 @@ Tasks:
    DESIGN.md section 6.7. Render tags as `a.tag` so `colored-tags` colours carry
    through. Render description wikilinks as working internal links.
 
-**Gate:** counts must read Focus 3, Today 2, This week 6, Blocked 1, Unsorted 70,
-Done 24. Note that 3 + 2 + 6 + 1 + 70 = 82, one more than the 81 open tasks,
-because one task in `Inbox.md` carries both `#blocked` and `#this-week`. It must
-appear in exactly one group, resolved by group order, not both.
+**Gate:** counts must read Focus 3, Today 2, This week 6, Blocked 1, Unsorted 69,
+Done 24. Note that 3 + 2 + 6 + 1 + 69 = 81, one more than the 80 indexed open
+tasks, because one task in `Inbox.md` carries both `#blocked` and `#this-week`. It
+must appear in exactly one group, resolved by group order, not both.
+
+*Amended 2026-07-28, following the phase 2 gate. Every open-task figure in this
+plan below the phase 2 gate is a vault count and reads one lower in the view,
+because `excludedPaths` drops the illustrative task in `Settings/_Vault Guide.md`.
+That task is unlaned, so the minus one lands entirely on Unsorted: 70 in the vault,
+69 in the view.*
 
 Then open the view beside the current Daily Note's `## Focus` block. The three
 Focus tasks appear with the same content and a visibly similar treatment.
@@ -198,8 +204,10 @@ Tasks:
 3. Group sections stay visible when filtered, showing filtered counts.
 4. Filter state in memory only, reset on view close.
 
-**Gate:** filtering to `atlas` shows all 44 `#atlas*` tasks, including both
-subtags. Switching to `all` with `atlas` plus `focus` selected narrows correctly.
+**Gate:** filtering to `atlas` shows all 43 `#atlas*` tasks, including both
+subtags. 43 rather than the 44 in DESIGN.md section 1.1: the excluded
+`Settings/_Vault Guide.md` example carries the parent tag. See the phase 3 gate.
+Switching to `all` with `atlas` plus `focus` selected narrows correctly.
 Searching "handover" matches by description and by file path. Vault `git diff`
 still empty.
 
