@@ -1,7 +1,7 @@
 # Handover
 
 For an agent picking up Task Master with no prior context. Written 2026-07-28,
-after phase 2.
+after phase 3.
 
 ## Read these first, in this order
 
@@ -18,32 +18,40 @@ marked in place with a date and a reason. Trust the current text.
 
 ## State
 
-Branch `build/task-master`, seven commits ahead of `main`, working tree clean,
-pushed. Open PR: #1, phases 0 to 2, carrying a self-review as a comment.
+PR #1, phases 0 to 2, is merged. Phase 3 is PR #9, on branch
+`claude/obsidian-task-master-phase-3-12f9ef`, carrying a self-review as a comment.
 
 | Phase | Status |
 | --- | --- |
 | 0, scaffold | Complete, gate passed 2026-07-28. |
 | 1, parse and serialise | Complete, gate passed. |
-| 2, indexing | Complete, gate passed 2026-07-28. 276 tests green. |
-| 3 onwards | Not started. |
+| 2, indexing | Complete, gate passed 2026-07-28. |
+| 3, read-only view | Complete, 361 tests green. Numeric gate verified against the live vault; the visual half needs Jon in Obsidian. |
+| 4 onwards | Not started. |
 
 ```
 src/
   main.ts                  plugin entry, ribbon, commands, the dev dump command
-  settings.ts              defaults only; the settings tab lands in phase 4
+  controller.ts            owns Index and Store, hands the view a snapshot
+  settings.ts              defaults and the four seeded groups
   view/
     TaskMasterView.ts      ItemView shell, mounts the Svelte root
-    App.svelte             placeholder, renders "Task Master"
+    App.svelte             header, sections, empty state
+    GroupSection.svelte    collapsible header, rows, Done date subheadings
+    TaskRow.svelte         the two-line row
   model/
     types.ts               Task, Segment, GroupDef, StoreData
     tokens.ts              the lexer: one reader per metadata token
     parse.ts               line -> Task
     serialise.ts           Task -> line
+    group.ts               lane assignment, multi-lane conflict resolution
+    filter.ts              sorting and section assembly
+    inline.ts              description -> text and link parts, for rendering
     paths.ts               excludedPaths matching, at a folder boundary
     summarise.ts           counts by status, tag and file, with subtag rollup
   data/
     TaskIndex.ts           scan, incremental update, emit
+    Store.ts               data.json: defaults, repair, corrupt-file quarantine
 tests/
   corpus.ts                the fixture loader, used by every suite
   corpus.test.ts           guards the fixture itself
@@ -51,16 +59,29 @@ tests/
   roundtrip.test.ts        the corpus test, one assertion per line
   parse.test.ts            token semantics, plus composition cross-checks
   parse.robustness.test.ts fuzz over derived malformed input
+  group.test.ts            lane assignment and precedence
+  filter.test.ts           sorting, section assembly, the Done cap
+  inline.test.ts           description link splitting
   paths.test.ts            excludedPaths edge cases
   summarise.test.ts        counting and subtag rollup
   TaskIndex.test.ts        scan, incremental update, races, against a fake vault
+  Store.test.ts            seeding, repair, corrupt-file quarantine
   fakeVault.ts             a vault the tests drive
   obsidian-stub.ts         stands in for the obsidian module, aliased in vitest
 ```
 
 ## What blocks you right now
 
-Nothing blocks the code. Phase 3 is next, per PLAN.md.
+Nothing blocks the code. Phase 4, filtering and search, is next per PLAN.md.
+
+One thing needs Jon at the keyboard: the visual half of the phase 3 gate. Open the
+view beside the current Daily Note's `## Focus` block, check the three Focus tasks
+read the same, then toggle light and dark and all three CSS snippets off and on.
+
+**If you are working in a git worktree, `npm run dev` does not reach the vault.**
+The plugin folder in `~/Documents/Obsidian/Red Badger/.obsidian/plugins/` is a
+symlink to the main checkout, so a build from a worktree lands nowhere Obsidian
+looks. Build in the main checkout for anything that needs eyes on it in Obsidian.
 
 Two things to know before you touch git or the remote:
 
@@ -108,6 +129,20 @@ Recorded so you neither relitigate them nor mistake them for accidents.
   is `tests/obsidian-stub.ts`, aliased in `vitest.config.ts` because the real
   `obsidian` package ships types only. **Keep that stub minimal**: the more of
   Obsidian it grows, the more the tests prove the stub.
+- **Blocked renders 0, not 1.** The phase 3 gate stated Focus 3, Today 2, This
+  week 6, Blocked 1, Unsorted 69, and noted its own figures summed to one more
+  than the indexed open tasks. They are tag counts, so the single multi-lane task
+  is counted under both lanes. Group order resolves it to This week, whose 6
+  already includes it, leaving Blocked empty. Amended in place in PLAN.md phase 3
+  and DESIGN.md section 6.2. If Jon would rather blocked work surfaced on its own,
+  that is a group reorder in phase 7, not a grouping change.
+- **`Store` landed in phase 3, not phase 4**, which is where the FIXME in
+  `main.ts` had guessed. `TaskIndex` now reads `excludedPaths` from the persisted
+  settings, closing issue #3.
+- **Nested task rendering is deferred to phase 4**, tracked as issue #8. DESIGN.md
+  section 6.3 wants a child indented under its parent and a breadcrumb when only
+  the child matches a filter; the breadcrumb half is meaningless before filtering
+  exists, and PLAN.md's phase 3 task list does not mention nesting.
 - **The corpus fixture is invented, and the vault git baseline was dropped**,
   both on 2026-07-28 when the GitHub remote was added. The repository is public
   and the vault holds client detail, colleague names and personal notes, so the
@@ -150,7 +185,7 @@ Other things worth knowing before you edit the parser:
 
 ## The test suite, and what each part is for
 
-`npm test` — 276 tests, under a second.
+`npm test` — 361 tests, under a second.
 
 - `roundtrip.test.ts` is the one DESIGN.md calls "the most important correctness
   property in the system". One assertion per corpus line so a failure names the
@@ -201,10 +236,10 @@ npm run build           # check, then a minified production bundle
 
 ## Start here
 
-1. Ask Jon to clear the blocker above. Until the plugin loads, phase 2 cannot be
-   gated.
-2. Then phase 2, indexing, per PLAN.md. `TaskIndex.ts` takes task lines from
-   `ListItemCache` entries where `task !== undefined`, which gets correct
-   handling of code fences and nesting for free — do not sweep with a regex.
+1. Phase 4, filtering and search, per PLAN.md. `filter.ts` already assembles the
+   sections and sorts them; phase 4 adds the tag filter, the search and
+   `Toolbar.svelte` in front of it.
+2. Read the phase 4 gate first: it expects 43 `#atlas*` tasks, not the 44 in
+   DESIGN.md section 1.1, for the same exclusion reason as phase 3.
 3. Commit one commit per phase, message `phase N: <title>`, and paste real test
    output rather than asserting that something passes.

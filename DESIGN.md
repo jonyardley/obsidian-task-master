@@ -559,6 +559,7 @@ src/
     rank.ts                sparse rank allocation and renormalisation
     group.ts               assign tasks to groups, resolve multi-lane conflicts
     filter.ts              filter, search, sort, assemble sections
+    inline.ts              split a description into text and link parts, for rendering
     paths.ts               excludedPaths matching, at a folder boundary
     summarise.ts           counts by status, tag and file, with subtag rollup
 
@@ -599,6 +600,13 @@ thin.
 
 If a module in `model/` needs an Obsidian import, the boundary is wrong. Fix the
 boundary rather than adding the import.
+
+*Amended 2026-07-28, during phase 3. The table above reads as though `view/` may
+import nothing but `controller.ts`. It may also import **pure helpers** from
+`model/`: `inline.ts` exists for rendering, and `TaskRow.svelte` reads the glyph
+vocabulary from `tokens.ts` rather than spelling out emoji of its own. What the rule
+is actually about stands unchanged: the view holds no vault access and no writes, and
+every intent goes through the controller.*
 
 Every file should stay small enough to hold in one head. If one grows past
 roughly 250 lines, that is a signal it is doing two things.
@@ -720,6 +728,11 @@ The counts here and in section 1.1 are vault counts; the view applies
 `excludedPaths`, which drops the illustrative task in `Settings/_Vault Guide.md`.
 That task is unlaned, so the whole difference lands on Unsorted. The phase 3 and 4
 gates in PLAN.md carry the adjusted figures.*
+
+*Amended 2026-07-28, during phase 3. Blocked renders **0**, not 1. The only open
+task carrying `#blocked` also carries `#this-week`, and group order resolves it to
+This week, whose 6 already counts it. The counts in this sketch are tag counts and
+therefore double-count that one task; the view shows each task once.*
 
 ### 6.3 Task row
 
@@ -868,7 +881,8 @@ on view close, and never persisted.
 | `mutate.test.ts` | Each mutation changes only what it should. Priority normal removes the glyph. Completing adds the done date once, not twice. |
 | `rank.test.ts` | Property test: any sequence of moves yields a consistent total order with no collisions. Renormalisation preserves order. Insertion between adjacent ranks always succeeds. |
 | `group.test.ts` | Lane assignment. Multi-lane conflict resolution. Unsorted membership. |
-| `filter.test.ts` | Tag prefix matching. Any versus all. Search across description and path. Unranked fallback ordering. |
+| `filter.test.ts` | Tag prefix matching. Any versus all. Search across description and path. Unranked fallback ordering. Section assembly, the Done cap and its date subheadings. |
+| `inline.test.ts` | A description splits into text and link parts that tile it, so the row can render working links without parsing markdown itself. |
 
 `model/` should reach effectively full branch coverage. It is pure, it is the
 entire risk surface, and it is cheap to test.
@@ -889,6 +903,7 @@ tests control.*
 | Suite | What it proves |
 | --- | --- |
 | `TaskIndex.test.ts` | Only what the metadata cache reports is indexed. Exclusions, headings, block IDs and parent lines are attached. The interleavings a manual check cannot reach: an edit landing mid-scan, two scans overlapping, a read failing, a folder moving into an excluded path, and `isFullyIndexed` staying false until both the cache has resolved and a scan has completed. |
+| `Store.test.ts` | First-run seeding. A partial or hand-edited `data.json` is repaired rather than rejected. A corrupt one is renamed, never overwritten, so ordering is recoverable. |
 | `TaskWriter.test.ts` | Phase 5. Writes touch one line. A refused write leaves the file byte-identical. |
 
 *Two limits worth stating. The stub is not Obsidian, so a test can only prove

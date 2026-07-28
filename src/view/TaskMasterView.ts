@@ -1,5 +1,6 @@
 import { ItemView, type WorkspaceLeaf } from 'obsidian';
 import { mount, unmount } from 'svelte';
+import type { TaskMasterController } from '../controller';
 import App from './App.svelte';
 
 export const VIEW_TYPE_TASK_MASTER = 'task-master-view';
@@ -7,7 +8,10 @@ export const VIEW_TYPE_TASK_MASTER = 'task-master-view';
 export class TaskMasterView extends ItemView {
   private component: Record<string, unknown> | null = null;
 
-  constructor(leaf: WorkspaceLeaf) {
+  constructor(
+    leaf: WorkspaceLeaf,
+    private readonly controller: TaskMasterController,
+  ) {
     super(leaf);
   }
 
@@ -28,7 +32,13 @@ export class TaskMasterView extends ItemView {
     // Every selector in styles.css is scoped under this class, so the view
     // cannot leak styling into the rest of Obsidian. See DESIGN.md section 6.7.
     this.contentEl.addClass('task-master-view');
-    this.component = mount(App, { target: this.contentEl });
+    this.component = mount(App, {
+      target: this.contentEl,
+      props: { controller: this.controller },
+    });
+    // The initial scan happens on view open rather than plugin load, so startup
+    // stays cheap. See DESIGN.md section 5.3.
+    void this.controller.start();
   }
 
   override async onClose(): Promise<void> {
