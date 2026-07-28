@@ -1,0 +1,105 @@
+    - [ ] 10. Get the canonical tile-cache query from the mapping team and update handbook section 5 #atlas/docs 🔼
+    - [ ] 11. Risk register: decide fix-vs-accept for the queue tier; attach sign-off references #atlas/docs 🔼
+    - [ ] 12. Chase Marek: edge caching, registry contact, failover routing #atlas/docs 🔼 📅 2026-07-20
+    - [ ] 14. Get the sightings ETL cadence + staleness query from Ines Vidal (via Tomas or Bea) #atlas/docs 🔼
+    - [ ] 16. Produce a low-level design + resource inventory from the Terraform #atlas/docs 🔼
+    - [ ] 17. Finalise the port matrix alongside the low-level design #atlas/docs 🔼
+    - [ ] 18. Circulate the updated network/architecture diagram #atlas/docs 🔼
+    - [ ] 19. Roll out the remaining runbooks once Devi signs off the pilot format #atlas/docs 🔼
+    - [ ] 20. Design the patching approach: database maintenance window + vendor patch times #atlas/docs 🔼
+    - [ ] 21. Keep the wiki section 9 tracker updated as answers land #atlas/docs 🔼
+    - [ ] 23. Turn the release evidence pack into an ops-facing release checklist #atlas/docs 🔼
+    - [ ] 24. Produce a full health-check endpoint table per environment, plus the auth readiness fix #atlas/docs ⏫
+    - [ ] 7. Agree the scan false-positive remediation path with engineering #atlas/docs ⏫
+    - [ ] 8. Resolve the health-check exposure approach with Rafa (dashboard vs public endpoints) #atlas/docs ⏫
+    - [ ] 9. Live-test /api/readyz through the edge proxy (QA) #atlas/docs 🔼
+    - [ ] Confirm feature flag toggles need a separate change exception after 16 July #atlas ⏫
+  - [x] Try the new binoculars
+  - [x] Sketch the empty state ✅ 2026-07-23
+  - [x] Rename the species column!
+  - [x] Log the garden count ✅ 2026-07-23
+- [ ] Arrange offline-maps training for the field team #studio 🔗 [[Meetings/2026-05-06 Kickoff|source]]
+- [ ] Assess honestly whether Rafa can lead the migration independently #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Rafa Catch up|source]]
+- [ ] Iva: principal track #crew ⏫
+- [ ] Book the annual bike service and price up a new rear wheel #home 🔗 [[Meetings/2026-05-06 Weekend Planning|source]]
+- [ ] Book the leads away day (half day plus dinner with Otto, Vic and Ren) #studio 🔗 [[Meetings/2026-05-07 Otto - Sam|source]] · [[Meetings/2026-05-07 Sam - Otto|source]]
+- [ ] Atlas docs: close-out (Devi / ops) #atlas/docs #focus 🔺 🔗 [[Projects/Atlas/Docs]]
+- [ ] Chase Milo to complete and deliver the review/feedback for [[Ada Fenwick]] #crew 🔗 [[Meetings/2026-05-08 Ada - Sam|source]]
+- [ ] Chat with Yusuf 📅 2026-07-23
+- [ ] Chat with Lena to gather requirements for the studio's internal tool and start a backlog #studio 🔗 [[Meetings/2026-05-07 Otto - Sam|source]]
+- [ ] Chat with Sean O'Doherty 📅 2026-07-23 🔗 [[Sean O'Doherty]] #crew #this-week
+- [ ] Chat with Ravi about his next project and bench options when he returns #crew 🔗 [[Meetings/2026-05-08 Ada - Sam|source]]
+- [ ] Check Otto picked up Freya's probation feedback #crew
+- [ ] Close out the outstanding Atlas docs and dates promised to Devi #atlas/docs 📅 2026-07-23 🔗 [[Projects/Atlas/Docs]]
+- [ ] Complete Ravi's review and share feedback with [[Ada Fenwick]] #crew 🔗 [[Meetings/2026-05-08 Ada - Sam|source]]
+- [ ] Continue developing the migration swim lanes work #atlas/migration #focus 📅 2026-07-15 🔗 [[Projects/Atlas/Migration]]
+- [ ] Craft careful messaging to the partner on the roll-off plan so it doesn't appear abrupt #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Crew Chats|source]]
+- [ ] Create a board with questions, areas to cover, and a timeline for Monday's meeting 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-08 Rafa - Sam Catch-up|source]] #atlas/migration #today
+- [ ] Discuss the ongoing support model vs. repeat contracts with Vic and Rafa 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-08 Rafa - Sam Catch-up|source]] #atlas/migration #this-week
+- [ ] Draft statements of work for the migration and ongoing support arrangements #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-08 Rafa - Sam Catch-up|source]]
+- [ ] Draw up options for a post-launch support retainer #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Alignment on Migration Plan|source]]
+- [ ] Feature flagging setup and process #atlas ⏫
+- [ ] Feed back to Vic concerns about operating in the enterprise reporting space #studio 🔗 [[Meetings/2026-05-07 Sam - Otto|source]]
+- [ ] Gather leadership input on skill sets needed and who should remain for the migration #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Atlas Tech Leadership|source]]
+- [ ] Get the loft insulation quotes in (three suppliers minimum) #home 🔗 [[Meetings/2026-05-02 Retro Notes]]
+- [ ] Get the leads together this week to discuss estimation and story sizing #studio 🔗 [[Meetings/2026-05-07 Sam - Otto|source]]
+- [ ] Give Rafa, [[Bruno Adeyemi|Bruno]] and Devi a heads up on the roll-off thinking for the new bid #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Crew Chats|source]]
+- [ ] Give Nils project-aware feedback (meeting presence, technical awareness) when you next catch up #crew 🔗 [Thread](https://example.com/t/104857)
+- [ ] Give [[Nadia Okonkwo|Nadia]] clarity on project scope and where she fits in the team plan 📅 2026-07-28 #crew 🔗 [[Meetings/2026-05-08 Sam - Nadia Catch-up|source]]
+- [ ] Kick off Iva's 360 and run the gap analysis for her principal promotion 📅 2026-07-23 #crew #this-week
+- [ ] Let [[Sean O'Doherty]] know what he's moving onto / whether he's on the bench (he's off Mon/Tue next week) #crew 🔗 [Thread](https://example.com/t/104912)
+- [ ] Loop in Marek and Bea to keep priorities moving during the two-week August absence #atlas 🔗 [[Meetings/2026-05-11 Studio Catch-up - Atlas|source]]
+- [ ] Organise a flag permissions and handover session for the support team 📅 2026-07-23 #atlas/docs 🔗 [[Projects/Atlas/Docs]]
+- [ ] Post in the leads channel to ask if anyone needs an analyst-type role for [[Nadia Okonkwo|Nadia]] #crew 🔗 [[Meetings/2026-05-08 Sam - Nadia Catch-up|source]]
+- [ ] Present the migration plan to the steering group 📅 2026-08-03 #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Atlas Tech Leadership|source]]
+- [ ] Project feedback for Iva on Beacon
+- [ ] Project updates 📅 2026-07-22
+- [ ] Nils: support progression on Atlas #crew ⏫
+- [ ] Read Otto's article on offline-first sync #studio 🔗 [Thread](https://example.com/t/104877) · [[Meetings/2026-05-07 Otto - Sam|source]]
+- [ ] Rebook Otto 📅 2026-07-23
+- [ ] Request a beefier laptop for hands-on engineering and local model work #studio 🔗 [[Meetings/2026-05-07 Otto - Sam|source]]
+- [ ] Review Pia's Beacon maturity assessment deck and her risk write-up #beacon 🔗 [Thread](https://example.com/t/104534)
+- [ ] Review the auto-extracted task list and populate owners, dates, and decisions 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-08 Rafa - Sam Catch-up|source]] #atlas/migration #today
+- [ ] Run workshops with the partner on dormant capability and leave design documents behind #atlas 🔗 [[Meetings/2026-05-07 Sam - Otto|source]]
+- [ ] Schedule a 1-2 hour session with Bea to shape migration planning #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Studio Catch-up - Atlas|source]]
+- [ ] Send Yusuf feedback for Nils's 4th month review (same format as before) #crew 🔗 [Thread](https://example.com/t/105144)
+- [ ] Send a Thursday 2pm invite for the migration prep/timelines follow-up #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Studio Catch-up - Atlas|source]]
+- [ ] Set up a conversation with Vic, Rafa and Devi about the Atlas migration and adjusting my role #studio 🔗 [[Meetings/2026-05-07 Otto - Sam|source]]
+- [ ] Share the Atlas delivery plan (now/next/later) with Pia for the strategy doc #atlas ⏫
+- [ ] Share a doc/checklist of outstanding support feedback items for the team to chip away at #atlas 🔗 [[Meetings/2026-05-11 Atlas Tech Leadership|source]]
+- [ ] Share the role-reflection doc with Bea #crew #focus 🔺 📅 2026-07-08
+- [ ] Speak to HR about flexible working and the potential second-office move #studio 🔗 [[Meetings/2026-05-06 Weekend Planning|source]]
+- [ ] Speak to Freya, Milo and Ren about the realities of commuting from outside the city #studio 🔗 [[Meetings/2026-05-11 Lena - Sam|source]]
+- [ ] Speak with Marek about resolving repository access issues with Devi ahead of the partner team landing #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-08 Rafa - Sam Catch-up|source]]
+- [ ] Spend time with [[Priya Raman|Priya]] on her next project placement (larger team, principal alongside) #crew 🔗 [[Meetings/2026-05-07 Sam - Otto|source]]
+- [ ] Talk to the other leads to sense-check the skills-gap hypothesis #studio #this-week
+- [ ] Think through the migration tasks I personally need to lead on #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Rafa Catch up|source]]
+- [ ] Otto: pay and development planning ⏫ #crew #this-week
+- [ ] Update the resourcing tool with actual roll-off dates and team changes #atlas/migration 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Crew Chats|source]]
+- [ ] Verb-led task title 📅 2026-07-25 #atlas
+- [ ] Work out the design handover and whether there's work to end of August #atlas/migration 📅 2026-07-23 🔗 [[Projects/Atlas/Migration]] ^loe1wz
+- [ ] Work through Otto's pay rise rationale and narrative #crew 📅 2026-07-16
+- [ ] Write a pipeline update to share with the Atlas team #studio 🔗 [[Meetings/2026-05-11 Atlas Tech Leadership|source]]
+- [ ] Write an end-of-project doc for Sean #atlas 🔗 [Thread](https://example.com/t/104884)
+- [ ] Write up and share a team update following the Atlas review #atlas 🔗 [[Meetings/2026-05-11 Atlas Tech Leadership|source]]
+- [ ] [[Ada Fenwick]]: reviews for Beacon & Wren ⏫ 📅 2026-07-03 #crew #blocked #this-week
+- [x] Check in with Ada on Sean O'Doherty's attendance 📅 2026-07-16 🔗 [[Sean O'Doherty]] #crew ✅ 2026-07-24
+- [x] Tidy the sightings seed data #atlas ✅ 2026-07-23 ^b0q4i3
+- [x] Emergency scales practice before the lesson 🔗 [[Meetings/2026-05-02 Retro Notes]] #home ✅ 2026-07-24
+- [x] Find someone on Atlas to run a show and tell for new starters Marek and Nils #studio #focus 📅 2026-07-15 ✅ 2026-07-24
+- [x] Follow up on a form-library warning where the signature block may be too small 📅 2026-07-23 #atlas ✅ 2026-07-23
+- [x] Go for a walk in the park to clear my head 🔗 [[Meetings/2026-05-02 Retro Notes]] #home ✅ 2026-07-24
+- [x] Have an honest conversation with Ren about a more hands-on role 📅 2026-07-23 #crew ✅ 2026-07-23
+- [x] Priya: role on Wren ⏫ #crew ✅ 2026-07-24
+- [x] Plan how to free up Rafa and Marek earlier than end of September 📅 2026-07-23 #atlas ✅ 2026-07-24
+- [x] Prioritise search, filter and sort stories as a fast follow to pagination 📅 2026-07-23 #atlas ✅ 2026-07-23
+- [x] Read the Beacon design brief #studio #focus 📅 2026-07-15 ✅ 2026-07-24
+- [x] Reply to Pia about workload and cover while she is away 📅 2026-07-23 #crew ✅ 2026-07-23
+- [x] Review Pia's Beacon maturity assessment deck and risk notes #studio #focus 📅 2026-07-20 ✅ 2026-07-24
+- [x] Review Lena's Beacon productivity assessment notes #studio #focus 📅 2026-07-16 ✅ 2026-07-24
+- [x] Review and respond to [[Nadia Okonkwo|Nadia]]'s remote working request with [[Bruno Adeyemi]] 📅 2026-07-23 #crew ✅ 2026-07-24
+- [x] Share clarity on migration plans and team structure changes once confirmed 📅 2026-07-23 #atlas ✅ 2026-07-24
+- [x] Speak to Nils about [[Sean O'Doherty]]'s repeated absences #crew ✅ 2026-07-24
+- [x] Speak with Devi and Vic about their leadership roles rolling off 📅 2026-07-23 #atlas ✅ 2026-07-23
+- [x] Touch-base with Marek and Bea on shared data from the read replica before releasing the form prefills 📅 2026-07-23 #atlas ✅ 2026-07-23
+- [x] Triage the inbox 📅 2026-07-23 ✅ 2026-07-24
