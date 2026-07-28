@@ -146,6 +146,7 @@ visual language Jon already built. That is the whole product.
 5. Grouping into planning lanes, with the ability to create lanes.
 6. Visual continuity with the existing Tasks-query rendering.
 7. Editing in place: status, priority, due date, lane, and the task text itself.
+8. Keyboard-first triage of the Unsorted queue, and undo of the last change.
 
 ### 2.2 Non-goals
 
@@ -258,6 +259,25 @@ means breaking on its releases. Parsing a well-understood line format over 105
 lines is a small, testable problem, and Obsidian's own metadata cache supplies
 the structural information (which lines are tasks, their nesting, their block
 IDs) for free.
+
+### D7. Lane assignment has hotkeys, and the last write can be undone
+
+Added 2026-07-28, after review of the first-run experience.
+
+Triage of Unsorted gets keyboard hotkeys, not just drag. The controller keeps a
+one-deep undo of the last write.
+
+Rationale: on day one Unsorted holds roughly 70 of 81 open tasks, and the only
+route out of it as originally specified was dragging rows one at a time. That
+makes the single most important session, the first one, the slowest. Hotkeys
+turn it into a keyboard pass down the queue. Undo exists because a mis-drop
+rewrites a tag in a file that is not open in an editor, so Obsidian's own undo
+stack cannot reach it, and the vault is not a git repository.
+
+Rejected: multi-select with a bulk lane action, as more surface than a keyboard
+pass needs; a full undo stack, because one level covers the mistake that
+actually happens and a deeper stack has to reason about writes that landed on
+lines since changed on disk. See section 6.8.
 
 ---
 
@@ -498,7 +518,8 @@ partial index**, or closing Obsidian mid-index would silently discard ordering.
 ```
 src/
   main.ts                  plugin entry: registerView, commands, ribbon, settings tab
-  controller.ts            the only thing the view calls; owns Index, Writer, Store
+  controller.ts            the only thing the view calls; owns Index, Writer, Store,
+                           and the one-deep undo record
 
   model/                   pure. no Obsidian imports. all the tests live here.
     types.ts               Task, GroupDef, StoreData, Priority, TaskStatus
@@ -522,6 +543,7 @@ src/
     TaskRow.svelte
     TaskEditor.svelte      raw-line inline editor
     dnd.ts                 pragmatic-drag-and-drop wiring, drop-rank computation
+    keyboard.ts            view-local key bindings and selection movement
 
   settings.ts              settings tab and defaults
 
@@ -743,6 +765,40 @@ The view must look correct with all three of Jon's CSS snippets disabled. It
 must not fight them when they are enabled, which the `.task-master-view` scope
 achieves, since every snippet selector is scoped to `.markdown-rendered`,
 `.cm-content` or `.task-list-kanban-view`.
+
+### 6.8 Keyboard and undo
+
+Per decision D7. All bindings are local to the view and active only when it has
+focus, registered on the view's own container rather than as global Obsidian
+hotkeys, so they cannot leak into the editor.
+
+| Key | Action |
+| --- | --- |
+| `j`, `k` | move the selection down and up, across group boundaries |
+| `x` | toggle complete on the selection |
+| `e` | open the inline editor on the selection |
+| `1`-`5` | set priority, `3` meaning normal and therefore removing the glyph |
+| `g` then a group key | move the selection to that group |
+| `g` then `u` | move the selection to Unsorted, removing its lane tags |
+| `/` | focus the search box |
+| `Escape` | clear the search box, or close the inline editor |
+| `Cmd+Z` | undo the last write |
+
+Group keys are derived from each group's label, first letter, lowercased, with
+collisions resolved by group order and shown in the group header. For the seeded
+groups that is `f` Focus, `t` Today, `h` This week, `b` Blocked. `u` is reserved
+for Unsorted and cannot be claimed by a defined group.
+
+After a lane hotkey the selection advances to the next task, so working down
+Unsorted is a repeated single keystroke. This is the whole point of the feature.
+
+Undo is one level deep. The controller records, for the last write only, the
+file, the block ID or line, and the previous raw line. Undo re-runs the standard
+write path from section 5.4, including its stale-read verification, so an undo
+against a line since changed on disk aborts with the same `Notice` rather than
+clobbering it. A drag that wrote both a lane tag and a rank is undone as one
+unit: the line is restored and the rank reverted together. The record is cleared
+on view close, and never persisted.
 
 ---
 

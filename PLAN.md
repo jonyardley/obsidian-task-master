@@ -308,15 +308,27 @@ Tasks:
 
 1. Empty states: no tasks in the vault, no tasks matching the filter, an empty
    group.
-2. Keyboard support: `j`/`k` to move the selection, `x` to toggle complete,
-   `e` to edit, `1`-`5` to set priority, `/` to focus search.
-3. Nested task rendering, including the muted parent breadcrumb when only a child
+2. `src/view/keyboard.ts`: the bindings in DESIGN.md section 6.8, registered on
+   the view container so they never leak into the editor. Selection movement with
+   `j`/`k`, `x` to toggle complete, `e` to edit, `1`-`5` for priority, `/` to
+   focus search, `Escape` to clear.
+3. **Lane hotkeys**, per decision D7. `g` then a group key moves the selection to
+   that group, `g` then `u` moves it to Unsorted. Derive the key from the group
+   label's first letter, resolve collisions by group order, show the key in the
+   group header. Advance the selection afterwards, so working down Unsorted is
+   one repeated keystroke. Test the key-derivation function.
+4. **One-deep undo** in `controller.ts`, per decision D7 and DESIGN.md section
+   6.8. Record file, block ID or line, and previous raw line for the last write
+   only. Undo re-runs the phase 5 write path so the stale-read check still
+   applies. A cross-group drag undoes tag and rank together. Bind `Cmd+Z` in the
+   view, clear the record on view close, never persist it.
+5. Nested task rendering, including the muted parent breadcrumb when only a child
    matches the filter.
-4. Mobile sanity: the view must render and not crash. It need not be pleasant.
-5. `README.md`: what it does, how to install from source, the task format it
+6. Mobile sanity: the view must render and not crash. It need not be pleasant.
+7. `README.md`: what it does, how to install from source, the task format it
    expects, and the fact that markdown remains the source of truth.
-6. Remove the phase 2 dev command.
-7. **Update `Settings/_Vault Guide.md` in the vault.** Two passages are now false:
+8. Remove the phase 2 dev command.
+9. **Update `Settings/_Vault Guide.md` in the vault.** Two passages are now false:
    the "No drag ordering: priority markers plus `sort by priority` do the
    ranking" line under "Writing a task", and the `Actions.md` bullet under
    "Folders" describing it as the master kanban board to drag in. Replace both
@@ -324,8 +336,10 @@ Tasks:
    points at `Actions.md`. Show Jon the diff rather than committing it silently:
    it is his own documentation.
 
-**Gate:** work a real planning session in the view for twenty minutes. Then
-`git diff` the vault and read every changed line.
+**Gate:** triage ten tasks out of Unsorted using only the keyboard, then undo the
+last one and confirm the line returns to its original bytes. Then work a real
+planning session in the view for twenty minutes, `git diff` the vault, and read
+every changed line.
 
 ---
 
