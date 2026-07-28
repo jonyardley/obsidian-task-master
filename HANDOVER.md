@@ -9,8 +9,8 @@ after phase 3.
    decisions in section 3.
 2. `PLAN.md` — the authority on sequence. Ten phases, each with a verification
    gate. Its "How to work through this" rules are binding, especially rule 3
-   (`git diff` the vault after anything that writes) and rule 5 (stop and ask
-   rather than inventing behaviour).
+   (a scratch vault before the live one, and check what the live vault's files did
+   afterwards) and rule 5 (stop and ask rather than inventing behaviour).
 3. This file, for what has actually happened.
 
 Both documents have been amended since they were approved. Every amendment is
@@ -20,6 +20,8 @@ marked in place with a date and a reason. Trust the current text.
 
 PR #1, phases 0 to 2, is merged. Phase 3 is PR #9, on branch
 `claude/obsidian-task-master-phase-3-12f9ef`, carrying a self-review as a comment.
+Phase 4 branches off phase 3 rather than off `main`, because it builds on the view
+that PR #9 introduces. Merge #9 first.
 
 | Phase | Status |
 | --- | --- |
@@ -27,7 +29,8 @@ PR #1, phases 0 to 2, is merged. Phase 3 is PR #9, on branch
 | 1, parse and serialise | Complete, gate passed. |
 | 2, indexing | Complete, gate passed 2026-07-28. |
 | 3, read-only view | Complete, 361 tests green. Numeric gate verified against the live vault; the visual half needs Jon in Obsidian. |
-| 4 onwards | Not started. |
+| 4, filtering and search | Complete, 427 tests green. Gate verified against the corpus; the live-vault half needs Jon in Obsidian. |
+| 5 onwards | Not started. |
 
 ```
 src/
@@ -36,7 +39,8 @@ src/
   settings.ts              defaults and the four seeded groups
   view/
     TaskMasterView.ts      ItemView shell, mounts the Svelte root
-    App.svelte             header, sections, empty state
+    App.svelte             toolbar, header, sections, empty states
+    Toolbar.svelte         search, tag multi-select, any/all, sort, show done
     GroupSection.svelte    collapsible header, rows, Done date subheadings
     TaskRow.svelte         the two-line row
   model/
@@ -45,6 +49,7 @@ src/
     parse.ts               line -> Task
     serialise.ts           Task -> line
     group.ts               lane assignment, multi-lane conflict resolution
+    query.ts               the filter: tag matching, search, tag facets
     filter.ts              sorting and section assembly
     inline.ts              description -> text and link parts, for rendering
     paths.ts               excludedPaths matching, at a folder boundary
@@ -60,7 +65,8 @@ tests/
   parse.test.ts            token semantics, plus composition cross-checks
   parse.robustness.test.ts fuzz over derived malformed input
   group.test.ts            lane assignment and precedence
-  filter.test.ts           sorting, section assembly, the Done cap
+  query.test.ts            tag matching, search, tag facets
+  filter.test.ts           sorting, filtering, section assembly, the Done cap
   inline.test.ts           description link splitting
   paths.test.ts            excludedPaths edge cases
   summarise.test.ts        counting and subtag rollup
@@ -72,11 +78,21 @@ tests/
 
 ## What blocks you right now
 
-Nothing blocks the code. Phase 4, filtering and search, is next per PLAN.md.
+Nothing blocks the code. Phase 5, writes, is next per PLAN.md, and **rule 3 in
+PLAN.md applies from here on**: a scratch vault before the live one, because phase 5
+is the first phase that writes.
 
-One thing needs Jon at the keyboard: the visual half of the phase 3 gate. Open the
-view beside the current Daily Note's `## Focus` block, check the three Focus tasks
-read the same, then toggle light and dark and all three CSS snippets off and on.
+Two things need Jon at the keyboard, both in one sitting since phase 4's branch
+contains phase 3:
+
+1. The visual half of the phase 3 gate. Open the view beside the current Daily
+   Note's `## Focus` block, check the three Focus tasks read the same, then toggle
+   light and dark and all three CSS snippets off and on.
+2. The live-vault half of the phase 4 gate. Filter to `atlas` and confirm 43 open
+   tasks, switch to `all` with `atlas` plus `focus`, search "handover", and confirm
+   no markdown file in the vault has been modified. There is no git repository in
+   the vault to diff, so that last check is a `find -newermt`; see the second
+   amendment to rule 3 in PLAN.md.
 
 **If you are working in a git worktree, `npm run dev` does not reach the vault.**
 The plugin folder in `~/Documents/Obsidian/Red Badger/.obsidian/plugins/` is a
@@ -139,10 +155,13 @@ Recorded so you neither relitigate them nor mistake them for accidents.
 - **`Store` landed in phase 3, not phase 4**, which is where the FIXME in
   `main.ts` had guessed. `TaskIndex` now reads `excludedPaths` from the persisted
   settings, closing issue #3.
-- **Nested task rendering is deferred to phase 4**, tracked as issue #8. DESIGN.md
-  section 6.3 wants a child indented under its parent and a breadcrumb when only
-  the child matches a filter; the breadcrumb half is meaningless before filtering
-  exists, and PLAN.md's phase 3 task list does not mention nesting.
+- **Nested task rendering is still open**, issue #8. Phase 3 deferred it to phase 4
+  on the grounds that its breadcrumb needs filtering to exist. Filtering exists now,
+  so it is unblocked, but phase 4 did not take it: PLAN.md's phase 4 task list and
+  gate do not mention nesting, and it is row rendering rather than filtering. It
+  needs a parent lookup over every task rather than the visible ones, a recursive
+  row, and its own gate. **It needs a call from Jon**: its own small PR next, or
+  fold it into phase 9 polish.
 - **The corpus fixture is invented, and the vault git baseline was dropped**,
   both on 2026-07-28 when the GitHub remote was added. The repository is public
   and the vault holds client detail, colleague names and personal notes, so the
@@ -152,6 +171,34 @@ Recorded so you neither relitigate them nor mistake them for accidents.
   inside his vault out of scope for this project, so PLAN.md rule 3 now requires
   a scratch vault plus before/after logging in `TaskWriter` instead. Both are
   amended in place in DESIGN.md section 4.3 and PLAN.md rule 3.
+- **The filter went into `model/query.ts`**, not into `filter.ts` as DESIGN.md
+  section 5.1 and PLAN.md phase 4 both said. `filter.ts` was already at the 250-line
+  signal with sorting and assembly alone. Same split, and same reason, as the lexer
+  coming out of `parse.ts`. Amended in place in both documents.
+- **Five things DESIGN.md section 6.4 left open**, all amended in place there: the
+  filter applies to the Done section too; a filtered count reads as "n of m" on
+  every group header and in the view total; tag matching folds case and the
+  multi-select offers ancestors no task carries on its own; the sort selector
+  overrides `Settings.fallbackSort` for the session rather than changing the setting;
+  and the toolbar carries a clear-filter control, since a tag selection can be
+  narrowed to nothing by an edit elsewhere in the vault.
+- **`Toolbar.svelte` imports `debounce` from `obsidian`**, the first `.svelte` file
+  to import the module at all. Deliberate rather than drift: the alternative is
+  debouncing inside the controller, and that breaks the guard that stops an unrelated
+  snapshot landing mid-debounce from wiping half-typed text. The controller would
+  have to hold the pending term to keep the guard working, which is view state in the
+  wrong layer. `debounce` is a pure helper with no vault access, so no boundary in
+  DESIGN.md section 5.2 moves.
+- **The show-done toggle drives the Done section's collapse state**, the same state
+  the Done header toggles, rather than a second flag beside it. Section 6.4 defines
+  it as "toggles the Done section between collapsed and expanded", and two controls
+  over one thing must not be able to disagree. That state is persisted, so unlike the
+  rest of the toolbar it survives a view close; that is the existing phase 3
+  behaviour, not something phase 4 chose.
+- **Every gate below phase 5 asks for an empty vault `git diff`**, which the rule 3
+  amendment made unrunnable: there is no git repository in the vault. Read those
+  lines as "no markdown file in the vault has been modified" and check with
+  `find -newermt`. Amended in place under PLAN.md rule 3.
 
 ## How parsing works, because the rest depends on it
 
@@ -185,7 +232,7 @@ Other things worth knowing before you edit the parser:
 
 ## The test suite, and what each part is for
 
-`npm test` — 361 tests, under a second.
+`npm test` — 427 tests, under a second.
 
 - `roundtrip.test.ts` is the one DESIGN.md calls "the most important correctness
   property in the system". One assertion per corpus line so a failure names the
@@ -205,6 +252,11 @@ Other things worth knowing before you edit the parser:
   no claim that mangled input is understood. It ends with a guard asserting the
   suite did not pass vacuously, because its helper returns null both for
   "refused" and for "round-tripped". Keep that guard.
+- `filter.test.ts` ends with a suite filtering the whole corpus, which is the phase
+  4 gate one higher: 44 `#atlas*` rather than the live vault's 43, because the
+  corpus has no excluded path. It was checked red before green, by dropping the
+  hierarchical half of tag matching: that reads 9 rather than 44, since only 9 of
+  the corpus's open `#atlas*` lines carry the bare parent tag.
 
 ## Toolchain gotchas
 
@@ -228,7 +280,7 @@ Each of these cost time to find. None is obvious.
 ## Commands
 
 ```bash
-npm test                # 276 tests
+npm test                # 427 tests
 npm run check           # tsc over src, tsc over tests, svelte-check
 npm run dev             # watch build, output lands in the vault via the symlink
 npm run build           # check, then a minified production bundle

@@ -2,13 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { NO_DONE_DATE_LABEL, assembleSections, rowKey } from '../src/model/filter';
 import { DONE_GROUP_ID, UNSORTED_GROUP_ID } from '../src/model/group';
 import { parseTaskLine } from '../src/model/parse';
+import { EMPTY_FILTER, tagFacets, type FilterState } from '../src/model/query';
 import type { GroupDef, Settings, Task } from '../src/model/types';
 import { DEFAULT_GROUPS, DEFAULT_SETTINGS } from '../src/settings';
+import { corpusLines } from './corpus';
 
-/**
- * Section assembly and sorting per DESIGN.md sections 4.5, 6.2 and 6.6. No
- * filtering yet: that is phase 4.
- */
+/** Section assembly, filtering and sorting per DESIGN.md sections 4.5, 6.2, 6.4 and 6.6. */
 function parse(line: string, file = 'Inbox.md', line0 = 0): Task {
   const task = parseTaskLine(line, { file, line: line0 });
   if (!task) throw new Error(`expected a task, got null for: ${line}`);
@@ -24,6 +23,7 @@ interface Input {
   virtualCollapsed?: { unsorted: boolean; done: boolean };
   settings?: Partial<Settings>;
   showAllDone?: boolean;
+  filter?: Partial<FilterState>;
 }
 
 function assemble(input: Input) {
@@ -34,6 +34,7 @@ function assemble(input: Input) {
     virtualCollapsed: input.virtualCollapsed ?? { unsorted: false, done: true },
     settings: { ...DEFAULT_SETTINGS, ...input.settings },
     showAllDone: input.showAllDone ?? false,
+    filter: { ...EMPTY_FILTER, ...input.filter },
   });
 }
 
@@ -306,6 +307,244 @@ describe('assembleSections, the Done section', () => {
     );
     expect(focus?.rows).toHaveLength(5);
     expect(focus?.hidden).toBe(0);
+  });
+});
+
+describe('assembleSections, filtering', () => {
+  const tasks = [
+    parse('- [ ] Atlas focus task #atlas/docs #focus', 'Projects/Atlas.md', 0),
+    parse('- [ ] Atlas today task #atlas/migration #today', 'Projects/Atlas.md', 1),
+    parse('- [ ] Crew focus task #crew #focus', 'People/Crew.md', 0),
+    parse('- [ ] Unlaned atlas task #atlas', 'Inbox.md', 0),
+    parse('- [x] Atlas done task #atlas/docs ✅ 2026-07-24', 'Projects/Atlas.md', 2),
+  ];
+
+  function countsFor(filter: Partial<FilterState>): Record<string, number> {
+    return Object.fromEntries(
+      assemble({ tasks, filter }).map((section) => [section.id, section.count]),
+    );
+  }
+
+  it('changes nothing when the filter is empty', () => {
+    expect(countsFor({})).toEqual({
+      'g-focus': 2,
+      'g-today': 1,
+      'g-this-week': 0,
+      'g-blocked': 0,
+      [UNSORTED_GROUP_ID]: 1,
+      [DONE_GROUP_ID]: 1,
+    });
+  });
+
+  it('keeps every section visible while filtered, showing filtered counts', () => {
+    const sections = assemble({ tasks, filter: { tags: ['crew'] } });
+    expect(sections.map((section) => section.id)).toEqual([
+      'g-focus',
+      'g-today',
+      'g-this-week',
+      'g-blocked',
+      UNSORTED_GROUP_ID,
+      DONE_GROUP_ID,
+    ]);
+    expect(countsFor({ tags: ['crew'] })).toEqual({
+      'g-focus': 1,
+      'g-today': 0,
+      'g-this-week': 0,
+      'g-blocked': 0,
+      [UNSORTED_GROUP_ID]: 0,
+      [DONE_GROUP_ID]: 0,
+    });
+  });
+
+  it('reports the unfiltered count alongside, so the shape of the whole stays visible', () => {
+    const sections = assemble({ tasks, filter: { tags: ['crew'] } });
+    const focus = sections.find((section) => section.id === 'g-focus');
+    expect(focus?.count).toBe(1);
+    expect(focus?.total).toBe(2);
+    expect(sections.find((section) => section.id === DONE_GROUP_ID)?.total).toBe(1);
+  });
+
+  it('leaves total equal to count when nothing is filtered out', () => {
+    for (const section of assemble({ tasks })) expect(section.total).toBe(section.count);
+  });
+
+  it('matches subtags when a parent tag is selected', () => {
+    expect(countsFor({ tags: ['atlas'] })).toEqual({
+      'g-focus': 1,
+      'g-today': 1,
+      'g-this-week': 0,
+      'g-blocked': 0,
+      [UNSORTED_GROUP_ID]: 1,
+      [DONE_GROUP_ID]: 1,
+    });
+  });
+
+  it('narrows with all, where any would widen', () => {
+    expect(countsFor({ tags: ['atlas', 'focus'], tagMode: 'any' })['g-focus']).toBe(2);
+    expect(countsFor({ tags: ['atlas', 'focus'], tagMode: 'all' })['g-focus']).toBe(1);
+  });
+
+  it('filters the Done section too, so a filtered view holds one project only', () => {
+    const done = assemble({ tasks, filter: { tags: ['crew'] } }).find(
+      (section) => section.id === DONE_GROUP_ID,
+    );
+    expect(done?.rows).toEqual([]);
+    expect(done?.count).toBe(0);
+    expect(done?.total).toBe(1);
+  });
+
+  it('searches the description and the file path', () => {
+    expect(countsFor({ search: 'crew focus' })['g-focus']).toBe(1);
+    expect(countsFor({ search: 'people/' })['g-focus']).toBe(1);
+    expect(countsFor({ search: 'projects/' })['g-focus']).toBe(1);
+    expect(countsFor({ search: 'projects/' })['g-today']).toBe(1);
+  });
+
+  it('caps the filtered rows, not the unfiltered ones', () => {
+    // The cap counts what the filter left, so "show all" offers the filtered set and
+    // a project with three completed tasks is never folded away behind a cap that
+    // the rest of the vault filled up.
+    const done = [
+      ...Array.from({ length: 4 }, (_unused, index) =>
+        parse(`- [x] crew done ${index} #crew ✅ 2026-07-2${index}`, 'People/Crew.md', index),
+      ),
+      ...Array.from({ length: 6 }, (_unused, index) =>
+        parse(`- [x] atlas done ${index} #atlas ✅ 2026-07-1${index}`, 'Projects/Atlas.md', index),
+      ),
+    ];
+    const section = assemble({
+      tasks: done,
+      settings: { doneSectionLimit: 5 },
+      filter: { tags: ['crew'] },
+    }).find((candidate) => candidate.id === DONE_GROUP_ID);
+
+    expect(section?.total).toBe(10);
+    expect(section?.count).toBe(4);
+    expect(section?.rows).toHaveLength(4);
+    expect(section?.hidden).toBe(0);
+    expect(section?.overCap).toBe(false);
+  });
+
+  it('still reports a cap the filtered rows exceed', () => {
+    const done = Array.from({ length: 4 }, (_unused, index) =>
+      parse(`- [x] crew done ${index} #crew ✅ 2026-07-2${index}`, 'People/Crew.md', index),
+    );
+    const section = assemble({
+      tasks: done,
+      settings: { doneSectionLimit: 2 },
+      filter: { tags: ['crew'] },
+    }).find((candidate) => candidate.id === DONE_GROUP_ID);
+
+    expect(section?.count).toBe(4);
+    expect(section?.rows).toHaveLength(2);
+    expect(section?.hidden).toBe(2);
+    expect(section?.overCap).toBe(true);
+  });
+
+  it('excludes a cancelled task from the totals as well as the rows', () => {
+    const withCancelled = [...tasks, parse('- [-] Atlas abandoned #atlas ❌ 2026-07-22', 'A.md')];
+    const done = assemble({ tasks: withCancelled }).find(
+      (section) => section.id === DONE_GROUP_ID,
+    );
+    expect(done?.count).toBe(1);
+    expect(done?.total).toBe(1);
+  });
+});
+
+describe('assembleSections, the sort override', () => {
+  const tasks = [
+    parse('- [ ] undated, high #focus 🔺', 'B.md', 0),
+    parse('- [ ] dated, normal #focus 📅 2026-07-20', 'A.md', 0),
+  ];
+
+  it('follows settings.fallbackSort when the filter names no sort', () => {
+    expect(descriptionsIn({ tasks, settings: { fallbackSort: 'priority' } }, 'g-focus')).toEqual([
+      'undated, high',
+      'dated, normal',
+    ]);
+  });
+
+  it('overrides the setting for the session when the toolbar names a sort', () => {
+    expect(
+      descriptionsIn(
+        { tasks, settings: { fallbackSort: 'priority' }, filter: { sort: 'due' } },
+        'g-focus',
+      ),
+    ).toEqual(['dated, normal', 'undated, high']);
+  });
+
+  it('leaves Done in completion-date order, which the sort selector does not reach', () => {
+    const done = [
+      parse('- [x] older, high priority 🔺 ✅ 2026-07-20', 'A.md', 0),
+      parse('- [x] newer, no priority ✅ 2026-07-24', 'B.md', 0),
+    ];
+    for (const sort of ['priority', 'due', 'file'] as const) {
+      expect(descriptionsIn({ tasks: done, filter: { sort } }, DONE_GROUP_ID)).toEqual([
+        'newer, no priority',
+        'older, high priority',
+      ]);
+    }
+  });
+
+  it('never reorders a ranked task, whichever sort is chosen', () => {
+    const ranked = [
+      parse('- [ ] ranked last, high priority #focus 🔺 ^a'),
+      parse('- [ ] ranked first, no priority #focus ^b'),
+    ];
+    const order = { a: 2048, b: 1024 };
+    for (const sort of ['priority', 'due', 'file'] as const) {
+      expect(descriptionsIn({ tasks: ranked, order, filter: { sort } }, 'g-focus')).toEqual([
+        'ranked first, no priority',
+        'ranked last, high priority',
+      ]);
+    }
+  });
+});
+
+describe('assembleSections, filtering the corpus', () => {
+  // The automated analogue of the phase 4 gate in PLAN.md. The gate's own figure is
+  // 43, one lower, because the live vault's excluded Settings/_Vault Guide.md
+  // carries the parent tag and the corpus has no excluded path.
+  const tasks = corpusLines().map((line, index) => parse(line, 'Corpus.md', index));
+
+  function openRows(filter: Partial<FilterState>): number {
+    return assemble({ tasks, filter })
+      .filter((section) => section.kind !== 'done')
+      .reduce((total, section) => total + section.count, 0);
+  }
+
+  it('finds all 44 open #atlas tasks from the parent tag alone', () => {
+    expect(openRows({ tags: ['atlas'] })).toBe(44);
+  });
+
+  it('adds up from the parent tag and its two subtags', () => {
+    expect(openRows({ tags: ['atlas/docs'] })).toBe(18);
+    expect(openRows({ tags: ['atlas/migration'] })).toBe(17);
+    expect(openRows({ tags: ['atlas', 'atlas/docs', 'atlas/migration'], tagMode: 'any' })).toBe(44);
+  });
+
+  it('narrows to the intersection under all', () => {
+    expect(openRows({ tags: ['focus'] })).toBe(3);
+    expect(openRows({ tags: ['atlas', 'focus'], tagMode: 'any' })).toBe(45);
+    expect(openRows({ tags: ['atlas', 'focus'], tagMode: 'all' })).toBe(2);
+  });
+
+  it('searches the description', () => {
+    expect(openRows({ search: 'handover' })).toBe(2);
+  });
+
+  it('searches the file path, matching every task in the file', () => {
+    expect(openRows({ search: 'corpus.md' })).toBe(81);
+  });
+
+  it('offers atlas and both its subtags in the tag facets', () => {
+    const facets = tagFacets(tasks);
+    const byTag = new Map(facets.map((facet) => [facet.tag, facet.count]));
+    expect(byTag.get('atlas')).toBe(51);
+    expect(byTag.get('atlas/docs')).toBe(18);
+    expect(byTag.get('atlas/migration')).toBe(17);
+    // Ordered by frequency, so the biggest project sits at the top of the dropdown.
+    expect(facets[0]?.tag).toBe('atlas');
   });
 });
 

@@ -35,6 +35,110 @@
   max-width: 34rem;
 }
 
+/* ── toolbar ── */
+
+.task-master-view .tm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.8em;
+  padding-bottom: 0.5rem;
+}
+
+.task-master-view .tm-search {
+  flex: 1 1 14rem;
+  min-width: 10rem;
+  font-size: inherit;
+}
+
+.task-master-view .tm-toolbar-button {
+  font-size: inherit;
+  padding: 0.25em 0.6em;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.task-master-view .tm-toolbar-button.tm-selected {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+}
+
+.task-master-view .tm-mode {
+  display: flex;
+  gap: 0.15em;
+}
+
+.task-master-view .tm-sort,
+.task-master-view .tm-show-done {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.task-master-view .tm-sort select {
+  font-size: inherit;
+}
+
+/*
+  Anchored to the button rather than to the toolbar, so the list opens under the
+  control it belongs to however the toolbar has wrapped.
+*/
+.task-master-view .tm-tag-select {
+  position: relative;
+}
+
+.task-master-view .tm-tag-list {
+  position: absolute;
+  z-index: var(--layer-popover);
+  top: calc(100% + 0.25em);
+  left: 0;
+  margin: 0;
+  padding: 0.35em;
+  list-style: none;
+  min-width: 14rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  box-shadow: var(--shadow-s);
+}
+
+.task-master-view .tm-tag-list label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  padding: 0.2em 0.3em;
+  cursor: pointer;
+}
+
+.task-master-view .tm-tag-list label:hover {
+  background: var(--background-modifier-hover);
+}
+
+.task-master-view .tm-tag-list a.tag,
+.task-master-view .tm-tag-list .tag {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.task-master-view .tm-tag-count,
+.task-master-view .tm-group-total {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.task-master-view .tm-tag-empty {
+  color: var(--text-faint);
+  padding: 0.2em 0.3em;
+}
+
 /* ── group sections ── */
 
 .task-master-view .tm-group {

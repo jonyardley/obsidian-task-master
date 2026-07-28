@@ -1,9 +1,10 @@
 import { DONE_GROUP_ID, UNSORTED_GROUP_ID, assignGroup, orderedGroups } from './group';
+import { isVisible, matchesFilter, type FilterState } from './query';
 import type { GroupDef, Settings, Task } from './types';
 
 /**
- * Sorting and section assembly, per DESIGN.md sections 4.5, 6.2 and 6.6.
- * Filtering and search arrive in phase 4.
+ * Sorting and section assembly, per DESIGN.md sections 4.5, 6.2 and 6.6. The
+ * filter itself lives in query.ts.
  *
  * Nothing in src/model/ may import from Obsidian. See DESIGN.md section 5.2.
  */
@@ -32,8 +33,13 @@ export interface Section {
   label: string;
   kind: SectionKind;
   collapsed: boolean;
-  /** Every task in the section, counted before the Done cap applies. */
+  /** Rows in the section after filtering, counted before the Done cap applies. */
   count: number;
+  /**
+   * The same count with the filter ignored, so a narrowed view still shows the
+   * shape of the whole. Equal to `count` when nothing is filtered.
+   */
+  total: number;
   rows: Row[];
   /** Done only: the same rows, split under date subheadings. */
   dateGroups?: DoneDateGroup[];
@@ -52,6 +58,8 @@ export interface AssembleInput {
   settings: Settings;
   /** The "show all" affordance on the Done section. DESIGN.md section 6.6. */
   showAllDone: boolean;
+  /** In-memory toolbar state. DESIGN.md section 6.4. */
+  filter: FilterState;
 }
 
 /**
@@ -64,22 +72,27 @@ export function rowKey(row: Row): string {
 }
 
 export function assembleSections(input: AssembleInput): Section[] {
-  const { groups, order, settings, virtualCollapsed, showAllDone } = input;
+  const { groups, order, settings, virtualCollapsed, showAllDone, filter } = input;
 
   const rowsByGroup = new Map<string, Row[]>();
-  for (const group of groups) rowsByGroup.set(group.id, []);
-  rowsByGroup.set(UNSORTED_GROUP_ID, []);
-  rowsByGroup.set(DONE_GROUP_ID, []);
+  const totalsByGroup = new Map<string, number>();
+  for (const id of [...groups.map((group) => group.id), UNSORTED_GROUP_ID, DONE_GROUP_ID]) {
+    rowsByGroup.set(id, []);
+    totalsByGroup.set(id, 0);
+  }
 
   for (const task of input.tasks) {
-    if (task.status === 'cancelled' && !settings.showCancelled) continue;
+    if (!isVisible(task, settings)) continue;
     const { groupId, conflicts } = assignGroup(task, groups);
+    totalsByGroup.set(groupId, (totalsByGroup.get(groupId) ?? 0) + 1);
+    if (!matchesFilter(task, filter)) continue;
     rowsByGroup.get(groupId)?.push({ task, ...rankOf(task, order), conflicts });
   }
 
-  const activeCompare = compareActive(settings.fallbackSort);
+  const counts = { rowsByGroup, totalsByGroup };
+  const activeCompare = compareActive(filter.sort ?? settings.fallbackSort);
   const openSections: Section[] = orderedGroups(groups).map((group) =>
-    activeSection(group.id, group.label, 'group', group.collapsed, rowsByGroup, activeCompare),
+    activeSection(group.id, group.label, 'group', group.collapsed, counts, activeCompare),
   );
   openSections.push(
     activeSection(
@@ -87,15 +100,26 @@ export function assembleSections(input: AssembleInput): Section[] {
       'Unsorted',
       'unsorted',
       virtualCollapsed.unsorted,
-      rowsByGroup,
+      counts,
       activeCompare,
     ),
   );
 
   return [
     ...openSections,
-    doneSection(rowsByGroup.get(DONE_GROUP_ID) ?? [], virtualCollapsed.done, settings, showAllDone),
+    doneSection(
+      rowsByGroup.get(DONE_GROUP_ID) ?? [],
+      totalsByGroup.get(DONE_GROUP_ID) ?? 0,
+      virtualCollapsed.done,
+      settings,
+      showAllDone,
+    ),
   ];
+}
+
+interface Counts {
+  rowsByGroup: Map<string, Row[]>;
+  totalsByGroup: Map<string, number>;
 }
 
 function rankOf(task: Task, order: Record<string, number>): { rank?: number } {
@@ -109,15 +133,26 @@ function activeSection(
   label: string,
   kind: SectionKind,
   collapsed: boolean,
-  rowsByGroup: Map<string, Row[]>,
+  counts: Counts,
   compare: (a: Row, b: Row) => number,
 ): Section {
-  const rows = (rowsByGroup.get(id) ?? []).sort(compare);
-  return { id, label, kind, collapsed, count: rows.length, rows, hidden: 0, overCap: false };
+  const rows = (counts.rowsByGroup.get(id) ?? []).sort(compare);
+  return {
+    id,
+    label,
+    kind,
+    collapsed,
+    count: rows.length,
+    total: counts.totalsByGroup.get(id) ?? 0,
+    rows,
+    hidden: 0,
+    overCap: false,
+  };
 }
 
 function doneSection(
   rows: Row[],
+  total: number,
   collapsed: boolean,
   settings: Settings,
   showAllDone: boolean,
@@ -133,6 +168,7 @@ function doneSection(
     kind: 'done',
     collapsed,
     count: sorted.length,
+    total,
     rows: shown,
     dateGroups: byCompletionDate(shown),
     hidden: sorted.length - shown.length,
