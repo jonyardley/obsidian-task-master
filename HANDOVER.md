@@ -25,7 +25,7 @@ pushed. Open PR: #1, phases 0 to 2, carrying a self-review as a comment.
 | --- | --- |
 | 0, scaffold | Complete, gate passed 2026-07-28. |
 | 1, parse and serialise | Complete, gate passed. |
-| 2, indexing | Complete, gate passed 2026-07-28. 254 tests green. |
+| 2, indexing | Complete, gate passed 2026-07-28. 276 tests green. |
 | 3 onwards | Not started. |
 
 ```
@@ -53,6 +53,9 @@ tests/
   parse.robustness.test.ts fuzz over derived malformed input
   paths.test.ts            excludedPaths edge cases
   summarise.test.ts        counting and subtag rollup
+  TaskIndex.test.ts        scan, incremental update, races, against a fake vault
+  fakeVault.ts             a vault the tests drive
+  obsidian-stub.ts         stands in for the obsidian module, aliased in vitest
 ```
 
 ## What blocks you right now
@@ -97,6 +100,14 @@ Recorded so you neither relitigate them nor mistake them for accidents.
   native compiler. Revisit when svelte-check does.
 - **The lexer was split out of `parse.ts`** at 370 lines, past the 250-line
   signal in DESIGN.md section 5.2.
+- **`data/` is in the automated suite now**, amended in DESIGN.md section 8.1 with
+  Jon's agreement. Confining Vitest to `model/` was right while `data/` was empty.
+  A read-only review of `TaskIndex` found five defects, and a sixth, a scan
+  overwriting a newer incremental result with stale text, was found by the first
+  test written against it and could not have been found by reading. The mechanism
+  is `tests/obsidian-stub.ts`, aliased in `vitest.config.ts` because the real
+  `obsidian` package ships types only. **Keep that stub minimal**: the more of
+  Obsidian it grows, the more the tests prove the stub.
 - **The corpus fixture is invented, and the vault git baseline was dropped**,
   both on 2026-07-28 when the GitHub remote was added. The repository is public
   and the vault holds client detail, colleague names and personal notes, so the
@@ -139,7 +150,7 @@ Other things worth knowing before you edit the parser:
 
 ## The test suite, and what each part is for
 
-`npm test` — 254 tests, under a second.
+`npm test` — 276 tests, under a second.
 
 - `roundtrip.test.ts` is the one DESIGN.md calls "the most important correctness
   property in the system". One assertion per corpus line so a failure names the
@@ -182,7 +193,7 @@ Each of these cost time to find. None is obvious.
 ## Commands
 
 ```bash
-npm test                # 254 tests
+npm test                # 276 tests
 npm run check           # tsc over src, tsc over tests, svelte-check
 npm run dev             # watch build, output lands in the vault via the symlink
 npm run build           # check, then a minified production bundle

@@ -873,6 +873,30 @@ on view close, and never persisted.
 `model/` should reach effectively full branch coverage. It is pure, it is the
 entire risk surface, and it is cheap to test.
 
+*Amended 2026-07-28. **`data/` is in the automated suite too.** This section
+originally confined Vitest to `model/` on the grounds that it was the entire risk
+surface. That was true while `data/` was empty. `TaskIndex` is now around 230 lines
+of asynchronous event handling, and a read-only review of it found five defects; a
+sixth, a scan overwriting a newer incremental result with stale text, was found by
+the first test written against it and could not have been found by reading. Jon
+approved the change.*
+
+*The mechanism is a stub for the `obsidian` module, aliased in `vitest.config.ts`,
+because the real package ships types only: its `main` is the empty string, since
+the implementation is the running app. `tests/fakeVault.ts` drives a vault the
+tests control.*
+
+| Suite | What it proves |
+| --- | --- |
+| `TaskIndex.test.ts` | Only what the metadata cache reports is indexed. Exclusions, headings, block IDs and parent lines are attached. The interleavings a manual check cannot reach: an edit landing mid-scan, two scans overlapping, a read failing, a folder moving into an excluded path, and `isFullyIndexed` staying false until both the cache has resolved and a scan has completed. |
+| `TaskWriter.test.ts` | Phase 5. Writes touch one line. A refused write leaves the file byte-identical. |
+
+*Two limits worth stating. The stub is not Obsidian, so a test can only prove
+`TaskIndex` behaves correctly given the cache contract, never that the contract was
+read right; the per-phase manual gates in 8.2 remain the check on that. And the
+stub must stay minimal: the more of Obsidian it grows, the more the tests prove the
+stub.*
+
 ### 8.2 Manual, per phase
 
 `data/` and `view/` are verified by the checklists in [PLAN.md](PLAN.md). For a

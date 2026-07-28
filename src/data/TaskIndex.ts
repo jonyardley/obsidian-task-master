@@ -24,6 +24,12 @@ export class TaskIndex extends Component {
   private scanComplete = false;
   /** Invalidates results from a scan that a later scan has superseded. */
   private scanGeneration = 0;
+  /**
+   * Bumped per path whenever something newer than an in-flight read happens to it.
+   * A scan's read observes the file as it was when the read began, so without this
+   * a slow scan lands after an edit and overwrites the fresh parse with stale text.
+   */
+  private readonly writeSeq = new Map<string, number>();
   private inFlight: Promise<void> | null = null;
 
   constructor(
@@ -150,6 +156,7 @@ export class TaskIndex extends Component {
       return;
     }
 
+    const seenAt = this.writeSeq.get(file.path);
     let text: string;
     try {
       text = await this.app.vault.cachedRead(file);
@@ -163,6 +170,9 @@ export class TaskIndex extends Component {
     // A newer scan has already cleared the map; storing now would resurrect a
     // stale entry that nothing will remove.
     if (generation !== this.scanGeneration) return;
+    // Something newer happened to this path while the read was outstanding, so
+    // `text` is already history.
+    if (this.writeSeq.get(file.path) !== seenAt) return;
     this.store(file.path, tasksFrom(file.path, text, cache));
   }
 
@@ -173,6 +183,7 @@ export class TaskIndex extends Component {
    * path resolves against for a task with no block ID.
    */
   private reindexFile(file: TFile, text: string, cache: CachedMetadata): void {
+    this.touch(file.path);
     if (isExcludedPath(file.path, this.excludedPaths())) {
       if (this.byFile.delete(file.path)) this.emit(file.path);
       return;
@@ -181,12 +192,19 @@ export class TaskIndex extends Component {
     this.emit(file.path);
   }
 
+  private touch(path: string): void {
+    this.writeSeq.set(path, (this.writeSeq.get(path) ?? 0) + 1);
+  }
+
   /** Drops `path` and, when it names a folder, everything beneath it. */
   private forget(path: string): boolean {
+    this.touch(path);
     let removed = this.byFile.delete(path);
     const prefix = `${path}/`;
     for (const key of this.byFile.keys()) {
-      if (key.startsWith(prefix)) removed = this.byFile.delete(key) || removed;
+      if (!key.startsWith(prefix)) continue;
+      this.touch(key);
+      removed = this.byFile.delete(key) || removed;
     }
     return removed;
   }

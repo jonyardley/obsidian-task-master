@@ -58,6 +58,8 @@ tests/
   parse.robustness.test.ts fuzz over derived malformed input
   paths.test.ts            excludedPaths edge cases
   summarise.test.ts        counting and subtag rollup
+  TaskIndex.test.ts        scan, incremental update, races, against a fake vault
+  fakeVault.ts             the fake vault; obsidian-stub.ts the module alias
 ```
 
 Full intended layout is DESIGN.md section 5.1. Modules not yet listed above do
@@ -75,7 +77,7 @@ claim about the native compiler. Revisit when svelte-check does.
 ## Commands
 
 ```bash
-npm test                # Vitest, currently 254 tests, under a second
+npm test                # Vitest, currently 276 tests, under a second
 npm run test:watch      # the same, watching
 npm run check           # tsc over src, tsc over tests, then svelte-check
 npm run dev             # watch build, output lands in the vault via the symlink
@@ -116,7 +118,7 @@ Consequences you must respect:
 | Layer | Responsibility | Depends on | Tested by |
 | --- | --- | --- | --- |
 | `model/` | parsing, serialising, ranking, filtering, grouping | nothing | Vitest, exhaustively |
-| `data/` | vault reads, vault writes, persistence | Obsidian API, `model/` | manual checklist |
+| `data/` | vault reads, vault writes, persistence | Obsidian API, `model/` | Vitest against a fake vault, plus the manual gates |
 | `view/` | render and emit intents. Never writes. | `controller.ts` | manual checklist |
 | `controller.ts` | orchestrate: take an intent, mutate, write, refresh | `data/`, `model/` | manual checklist |
 
@@ -212,16 +214,30 @@ function name, a type, or an entry in this file. Usually yes.
 
 ## Testing
 
-Automated tests cover `model/` only, and cover it exhaustively. `data/`,
+Automated tests cover `model/` exhaustively and `data/` for its orchestration.
 `view/` and `controller.ts` are verified by the manual checklists in DESIGN.md
 section 8.2 and the per-phase gates in PLAN.md.
+
+`data/` is testable because `vitest.config.ts` aliases the `obsidian` module to
+`tests/obsidian-stub.ts`. The real package ships types only, its `main` is the
+empty string, so without the alias nothing under `src/data/` can be imported by a
+test at all. `tests/fakeVault.ts` drives a vault the tests control. **Keep the stub
+minimal**: the more of Obsidian it grows, the more the tests prove the stub rather
+than the code. It can never show the cache contract was read correctly, only that
+the code behaves given it, which is what the manual gates are still for.
 
 **Write the test before the implementation for anything in `src/model/`.** That
 layer is pure and is where all the risk lives. The suite runs in under a
 second, so there is no excuse for red-green-refactor slipping to
 "implement, then retrofit tests".
 
-The seven suites and what each is for:
+For `data/`, write the test that reproduces the interleaving you are worried about,
+and **check it fails for the right reason first**. The mid-scan race in
+`TaskIndex.test.ts` initially passed against broken code, because the fake read
+returned the file's current content rather than its content when the read began.
+An async test that cannot fail is worse than none.
+
+The eight suites and what each is for:
 
 - `roundtrip.test.ts` proves the round-trip guarantee. One assertion per corpus
   line so a failure names the line.
@@ -348,7 +364,7 @@ See `HANDOVER.md` for the live picture. As of 2026-07-28:
   Master".
 - Phase 1 complete, gate passed.
 - Phase 2 complete, gate passed against the live vault: 80 open, 24 done, 104
-  indexed. 254 tests green.
+  indexed. 276 tests green.
 - Phase 3, the read-only view, is next.
 - The remote is public and history has been scrubbed and pushed. The local
   `backup/pre-scrub-*` refs still hold the original capture, so never
