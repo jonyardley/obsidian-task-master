@@ -323,13 +323,25 @@ Tokens:
 | `^blockId` | Obsidian block ID | end of line only |
 
 The `🔗` convention, which is Jon's own and not part of Obsidian Tasks: a `🔗`
-followed by one or more wikilinks separated by ` · `. A link aliased `source`
-is provenance (the meeting or message the task came from). Any other link is
-project or person context. Example:
+followed by one or more links separated by ` · ` (U+00B7 MIDDLE DOT, surrounded
+by single spaces). A link aliased `source` is provenance (the meeting or message
+the task came from). Any other link is project or person context. Example:
 
 ```
 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Crew Chats|source]]
 ```
+
+A link in the run is either a wikilink or a markdown external link, and a single
+run may mix the two. Six lines in the corpus carry external links, and one mixes
+both kinds:
+
+```
+🔗 [Thread](https://example.com/t/104877) · [[Meetings/2026-05-07 Otto - Sam|source]]
+```
+
+Amended 2026-07-28, during phase 1. The original text said wikilinks only, which
+the corpus contradicts. Section 6.7 already styled external links, so this was an
+omission in the data model rather than a decision to exclude them.
 
 Wikilinks that appear inside the description rather than after a `🔗` stay part
 of the description, for example `Chase Harry to complete the review for
@@ -352,8 +364,9 @@ export type TaskStatus = 'open' | 'done' | 'cancelled' | 'custom';
 export type DateKind = 'due' | 'scheduled' | 'start' | 'created' | 'done' | 'cancelled';
 
 export interface ContextLink {
-  target: string;          // "Projects/Atlas/Migration"
-  alias?: string;          // "handover"
+  kind: 'wikilink' | 'external';
+  target: string;          // "Projects/Atlas/Migration", or the URL
+  alias?: string;          // "handover", or the markdown link text
   isSource: boolean;       // alias === 'source'
 }
 
