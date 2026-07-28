@@ -1,8 +1,26 @@
-import { Plugin } from 'obsidian';
+import { Notice, Plugin } from 'obsidian';
+import { TaskIndex } from './data/TaskIndex';
+import { summariseTasks } from './model/summarise';
+import { DEFAULT_SETTINGS } from './settings';
 import { TaskMasterView, VIEW_TYPE_TASK_MASTER } from './view/TaskMasterView';
 
 export default class TaskMasterPlugin extends Plugin {
+  private index!: TaskIndex;
+  private scanned = false;
+
   override async onload(): Promise<void> {
+    // Settings are not persisted until phase 4, so the defaults stand in.
+    this.index = new TaskIndex(this.app, () => DEFAULT_SETTINGS.excludedPaths);
+    this.addChild(this.index);
+
+    // Temporary, for the phase 2 gate: makes the incremental path observable.
+    // Remove with the dump command once the view re-renders on change.
+    this.register(
+      this.index.onChange(() => {
+        console.log(`[task-master] index changed: ${this.index.snapshot().length} tasks`);
+      }),
+    );
+
     this.registerView(VIEW_TYPE_TASK_MASTER, (leaf) => new TaskMasterView(leaf));
 
     this.addRibbonIcon('list-checks', 'Task Master', () => {
@@ -16,6 +34,40 @@ export default class TaskMasterPlugin extends Plugin {
         void this.activateView();
       },
     });
+
+    this.addCommand({
+      id: 'dump-index-stats',
+      name: 'Dump index stats',
+      callback: () => {
+        void this.dumpIndexStats();
+      },
+    });
+  }
+
+  /**
+   * Temporary, for the phase 2 gate in PLAN.md. Remove once the view renders the
+   * index and the counts can be read off the screen instead.
+   */
+  private async dumpIndexStats(): Promise<void> {
+    // Scan once only. Re-scanning on every dump would mask a broken incremental
+    // handler, which is half of what the phase 2 gate is checking.
+    if (!this.scanned) {
+      await this.index.scanVault();
+      this.scanned = true;
+    }
+    const summary = summariseTasks(this.index.snapshot());
+
+    console.log('[task-master] index stats', {
+      total: summary.total,
+      files: Object.keys(summary.byFile).length,
+      fullyIndexed: this.index.isFullyIndexed,
+    });
+    console.log('[task-master] by status', summary.byStatus);
+    console.log('[task-master] by tag, subtags rolled up', summary.byTagWithSubtags);
+    console.log('[task-master] by file', summary.byFile);
+
+    const { open = 0, done = 0 } = summary.byStatus;
+    new Notice(`Task Master: ${open} open, ${done} done, ${summary.total} indexed`);
   }
 
   /**

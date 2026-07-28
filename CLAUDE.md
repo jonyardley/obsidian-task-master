@@ -337,10 +337,12 @@ those skills invites relitigating settled decisions.
 
 See `HANDOVER.md` for the live picture. As of 2026-07-28:
 
-- Phase 0 code complete, **gate unverified**: `task-master` is absent from the
-  vault's `community-plugins.json`, so the plugin has never loaded. Needs Jon to
-  enable it in Settings then click the ribbon icon.
+- Phase 0 complete, gate passed. The plugin is enabled in the vault, loads with
+  a clean console, and the ribbon icon opens a full-page tab reading "Task
+  Master".
 - Phase 1 complete, gate passed, 236 tests green.
-- Phase 2 onwards not started, and its gate is blocked behind phase 0's.
+- Phase 2, indexing, is next and now unblocked.
+- **Nothing has been pushed.** The remote is public and the pre-HEAD commits
+  still hold the original vault capture. See HANDOVER.md before pushing.
 - The corpus fixture was replaced with invented content on 2026-07-28 so the
   repository could be public. See DESIGN.md section 4.3.

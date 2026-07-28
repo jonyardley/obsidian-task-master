@@ -22,7 +22,7 @@ Branch `build/task-master`, three commits ahead of `main`, working tree clean.
 
 | Phase | Status |
 | --- | --- |
-| 0, scaffold | Code complete. **Gate not fully passed**, see below. |
+| 0, scaffold | Complete, gate passed 2026-07-28. |
 | 1, parse and serialise | Complete, gate passed. 236 tests green. |
 | 2 onwards | Not started. |
 
@@ -48,17 +48,21 @@ tests/
 
 ## What blocks you right now
 
-One thing is waiting on Jon. **Do not work around it.**
+Nothing blocks the code. One thing is waiting on Jon before anything can be
+pushed.
 
-1. **The phase 0 gate is unverified.** Obsidian was running, so
-   `community-plugins.json` was deliberately left alone: editing it under a
-   running Obsidian gets clobbered. `grep -c task-master` on that file still
-   returns 0, so the plugin has never been loaded. Nobody has yet confirmed it
-   opens without console errors. Jon needs to enable **Task Master** in Settings
-   → Community plugins and click the ribbon icon.
+**The remote has never been pushed to.** `origin` points at
+`github.com/jonyardley/obsidian-task-master`, which is **public**. Commits
+`b9d2881` through `7df876e` still contain the original verbatim capture of the
+vault in `tests/fixtures/vault-corpus.txt`, and HEAD does not. A prepared
+`git filter-branch` swaps the synthetic fixture into every commit and
+pseudonymises the docs; backups sit on `backup/pre-scrub-main` and
+`backup/pre-scrub-build`. **Do not push, and do not add a second remote, until
+that has run and you have checked the history yourself.**
 
-Phase 2's gate also needs Obsidian running with the plugin enabled, so it is
-blocked behind it.
+Phase 0's gate passed on 2026-07-28: the plugin is enabled in the vault, loads
+with a clean console, and the ribbon icon opens a full-page tab reading "Task
+Master". Phase 2's gate needs the same running plugin, so it is now reachable.
 
 ## Decisions taken since the design was approved
 

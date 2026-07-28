@@ -131,11 +131,18 @@ Tasks:
 5. A temporary dev command `Task Master: dump index stats` logging counts by
    status, by tag, and by file.
 
-**Gate:** the dump reports 81 open and 24 done. Cross-check with:
+**Gate:** the dump reports **80 open and 24 done**. Cross-check with:
 
 ```bash
 grep -rh '^\s*- \[ \]' ~/Documents/Obsidian/Red\ Badger --include=*.md | wc -l
 ```
+
+*Amended 2026-07-28. That grep returns 81, not 80, and the gate originally
+expected the dump to match it. The difference is one line: an illustrative
+`- [ ] Verb-led task title` inside `Settings/_Vault Guide.md`, which the default
+`excludedPaths` correctly drops. The grep has no notion of exclusions, so 81 by
+grep and 80 indexed is the pass condition, not a bug. If the two ever agree,
+the exclusions have stopped working.*
 
 Then edit a task in a Daily Note and confirm the index updates without a
 reload.
