@@ -2,3 +2,11 @@ node_modules/
 main.js
 *.js.map
 .DS_Store
+
+# The vault's plugin folder is a symlink to this repo, so Obsidian writes the
+# plugin's own persisted store here. It is machine state, not source.
+data.json
+.hotreload
+
+# Claude Code worktrees live inside the repo and hold their own checkouts.
+.claude/worktrees/

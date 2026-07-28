@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Tests run in Node, read fixtures from disk, and may import from src/.
+    "types": ["node"]
+  },
+  "include": ["tests/**/*.ts", "src/**/*.ts", "*.mjs", "*.ts"]
+}

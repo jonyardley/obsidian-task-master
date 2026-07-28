@@ -1,0 +1,19 @@
+/*
+  Task Master.
+
+  Everything here is scoped under .task-master-view so the plugin cannot affect
+  the rest of Obsidian, and Jon's own snippets (all scoped to .markdown-rendered,
+  .cm-content or .task-list-kanban-view) cannot affect the plugin.
+
+  Colours come from Obsidian's own CSS variables, so Minimal light and dark both
+  work without a second stylesheet. See DESIGN.md section 6.7.
+*/
+
+.task-master-view .tm-root {
+  padding: 1rem 1.25rem;
+  color: var(--text-normal);
+}
+
+.task-master-view .tm-placeholder {
+  color: var(--text-muted);
+}

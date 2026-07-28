@@ -16,6 +16,13 @@ Companion document: [PLAN.md](PLAN.md).
 
 Target vault: `~/Documents/Obsidian/Red Badger`. Measured on 2026-07-28.
 
+*Amended 2026-07-28. This repository is public, so every domain tag, page name
+and person below is a pseudonym, mapped consistently here, in PLAN.md and in
+`tests/fixtures/vault-corpus.txt`. The counts, the structure and the conventions
+are the real ones; only the words changed. Lane tags (`#focus`, `#today`,
+`#this-week`, `#blocked`) are unchanged, because they are configuration this
+plugin reads rather than anything identifying.*
+
 | Metric | Value |
 | --- | --- |
 | Markdown files (excluding `.obsidian`) | 53 |
@@ -63,7 +70,7 @@ anything.
 Exactly one open task carries two lane tags, in `Inbox.md`:
 
 ```
-- [ ] [[Ada Fenwick]]: review for Beacon & Wren ⏫ 📅 2026-07-03 #crew #blocked #this-week
+- [ ] [[Ada Fenwick]]: reviews for Beacon & Wren ⏫ 📅 2026-07-03 #crew #blocked #this-week
 ```
 
 Keep it as a test case rather than tidying it up. Multi-lane conflict handling
@@ -146,6 +153,7 @@ visual language Jon already built. That is the whole product.
 5. Grouping into planning lanes, with the ability to create lanes.
 6. Visual continuity with the existing Tasks-query rendering.
 7. Editing in place: status, priority, due date, lane, and the task text itself.
+8. Keyboard-first triage of the Unsorted queue, and undo of the last change.
 
 ### 2.2 Non-goals
 
@@ -259,6 +267,25 @@ lines is a small, testable problem, and Obsidian's own metadata cache supplies
 the structural information (which lines are tasks, their nesting, their block
 IDs) for free.
 
+### D7. Lane assignment has hotkeys, and the last write can be undone
+
+Added 2026-07-28, after review of the first-run experience.
+
+Triage of Unsorted gets keyboard hotkeys, not just drag. The controller keeps a
+one-deep undo of the last write.
+
+Rationale: on day one Unsorted holds roughly 70 of 81 open tasks, and the only
+route out of it as originally specified was dragging rows one at a time. That
+makes the single most important session, the first one, the slowest. Hotkeys
+turn it into a keyboard pass down the queue. Undo exists because a mis-drop
+rewrites a tag in a file that is not open in an editor, so Obsidian's own undo
+stack cannot reach it, and the vault is not a git repository.
+
+Rejected: multi-select with a bulk lane action, as more surface than a keyboard
+pass needs; a full undo stack, because one level covers the mistake that
+actually happens and a deeper stack has to reason about writes that landed on
+lines since changed on disk. See section 6.8.
+
 ---
 
 ## 4. Data model
@@ -303,13 +330,25 @@ Tokens:
 | `^blockId` | Obsidian block ID | end of line only |
 
 The `🔗` convention, which is Jon's own and not part of Obsidian Tasks: a `🔗`
-followed by one or more wikilinks separated by ` · `. A link aliased `source`
-is provenance (the meeting or message the task came from). Any other link is
-project or person context. Example:
+followed by one or more links separated by ` · ` (U+00B7 MIDDLE DOT, surrounded
+by single spaces). A link aliased `source` is provenance (the meeting or message
+the task came from). Any other link is project or person context. Example:
 
 ```
 🔗 [[Projects/Atlas/Migration|plan]] · [[Meetings/2026-05-11 Crew Chats|source]]
 ```
+
+A link in the run is either a wikilink or a markdown external link, and a single
+run may mix the two. Six lines in the corpus carry external links, and one mixes
+both kinds:
+
+```
+🔗 [Thread](https://example.com/t/104877) · [[Meetings/2026-05-07 Otto - Sam|source]]
+```
+
+Amended 2026-07-28, during phase 1. The original text said wikilinks only, which
+the corpus contradicts. Section 6.7 already styled external links, so this was an
+omission in the data model rather than a decision to exclude them.
 
 Wikilinks that appear inside the description rather than after a `🔗` stay part
 of the description, for example `Chase Harry to complete the review for
@@ -332,8 +371,9 @@ export type TaskStatus = 'open' | 'done' | 'cancelled' | 'custom';
 export type DateKind = 'due' | 'scheduled' | 'start' | 'created' | 'done' | 'cancelled';
 
 export interface ContextLink {
-  target: string;          // "Projects/Atlas/Migration"
-  alias?: string;          // "handover"
+  kind: 'wikilink' | 'external';
+  target: string;          // "Projects/Atlas/Migration", or the URL
+  alias?: string;          // "handover", or the markdown link text
   isSource: boolean;       // alias === 'source'
 }
 
@@ -374,9 +414,18 @@ For every task line in the vault:
 serialise(parse(line)) === line
 ```
 
-`tests/fixtures/vault-corpus.txt` contains all 105 distinct task lines from the
-live vault and exists for exactly this test. It must be run as a table test with
-one assertion per line, so a failure names the offending line.
+`tests/fixtures/vault-corpus.txt` contains 105 task lines and exists for exactly
+this test. It must be run as a table test with one assertion per line, so a
+failure names the offending line.
+
+*Amended 2026-07-28. The fixture was originally a verbatim capture of the live
+vault. This repository is public and the vault holds client detail, colleague
+names and personal notes, so the capture was transliterated line for line into
+invented content: token structure, indentation, glyphs, link shapes and every
+composition count are preserved, only the words changed. `tests/fixtures.test.ts`
+asserts the grammar coverage that swap had to keep, and the live-vault counts now
+live in the phase 2 and 3 gates in PLAN.md, checked by grep against the real
+vault, rather than in a unit test that would drift the moment Jon ticks a box.*
 
 When a line does not round-trip, `roundTrips` is set false. Such a task is
 indexed and displayed, but every mutation is refused and the row offers only
@@ -498,16 +547,20 @@ partial index**, or closing Obsidian mid-index would silently discard ordering.
 ```
 src/
   main.ts                  plugin entry: registerView, commands, ribbon, settings tab
-  controller.ts            the only thing the view calls; owns Index, Writer, Store
+  controller.ts            the only thing the view calls; owns Index, Writer, Store,
+                           and the one-deep undo record
 
   model/                   pure. no Obsidian imports. all the tests live here.
     types.ts               Task, GroupDef, StoreData, Priority, TaskStatus
+    tokens.ts              the lexer: one reader per metadata token
     parse.ts               string -> Task
     serialise.ts           Task -> string
     mutate.ts              setStatus, setPriority, setDate, setLaneTag, setBody
     rank.ts                sparse rank allocation and renormalisation
     group.ts               assign tasks to groups, resolve multi-lane conflicts
     filter.ts              filter, search, sort, assemble sections
+    paths.ts               excludedPaths matching, at a folder boundary
+    summarise.ts           counts by status, tag and file, with subtag rollup
 
   data/                    the only place that touches the vault.
     TaskIndex.ts           scan, incremental update, emit snapshots
@@ -522,12 +575,13 @@ src/
     TaskRow.svelte
     TaskEditor.svelte      raw-line inline editor
     dnd.ts                 pragmatic-drag-and-drop wiring, drop-rank computation
+    keyboard.ts            view-local key bindings and selection movement
 
   settings.ts              settings tab and defaults
 
 styles.css                 all scoped under .task-master-view
 tests/
-  fixtures/vault-corpus.txt   105 real task lines
+  fixtures/vault-corpus.txt   105 task lines, invented, see 4.3
   *.test.ts
 ```
 
@@ -661,6 +715,12 @@ the problem: five sixths of the open work has no lane. Unsorted is the working
 queue, not an error state, so it renders expanded by default while the populated
 lanes above it stay short.
 
+*Amended 2026-07-28, following the phase 2 gate. Unsorted renders **69**, not 70.
+The counts here and in section 1.1 are vault counts; the view applies
+`excludedPaths`, which drops the illustrative task in `Settings/_Vault Guide.md`.
+That task is unlaned, so the whole difference lands on Unsorted. The phase 3 and 4
+gates in PLAN.md carry the adjusted figures.*
+
 ### 6.3 Task row
 
 Two lines, mirroring the reference screenshot:
@@ -744,6 +804,40 @@ must not fight them when they are enabled, which the `.task-master-view` scope
 achieves, since every snippet selector is scoped to `.markdown-rendered`,
 `.cm-content` or `.task-list-kanban-view`.
 
+### 6.8 Keyboard and undo
+
+Per decision D7. All bindings are local to the view and active only when it has
+focus, registered on the view's own container rather than as global Obsidian
+hotkeys, so they cannot leak into the editor.
+
+| Key | Action |
+| --- | --- |
+| `j`, `k` | move the selection down and up, across group boundaries |
+| `x` | toggle complete on the selection |
+| `e` | open the inline editor on the selection |
+| `1`-`5` | set priority, `3` meaning normal and therefore removing the glyph |
+| `g` then a group key | move the selection to that group |
+| `g` then `u` | move the selection to Unsorted, removing its lane tags |
+| `/` | focus the search box |
+| `Escape` | clear the search box, or close the inline editor |
+| `Cmd+Z` | undo the last write |
+
+Group keys are derived from each group's label, first letter, lowercased, with
+collisions resolved by group order and shown in the group header. For the seeded
+groups that is `f` Focus, `t` Today, `h` This week, `b` Blocked. `u` is reserved
+for Unsorted and cannot be claimed by a defined group.
+
+After a lane hotkey the selection advances to the next task, so working down
+Unsorted is a repeated single keystroke. This is the whole point of the feature.
+
+Undo is one level deep. The controller records, for the last write only, the
+file, the block ID or line, and the previous raw line. Undo re-runs the standard
+write path from section 5.4, including its stale-read verification, so an undo
+against a line since changed on disk aborts with the same `Notice` rather than
+clobbering it. A drag that wrote both a lane tag and a rank is undone as one
+unit: the line is restored and the rank reverted together. The record is cleared
+on view close, and never persisted.
+
 ---
 
 ## 7. Error handling
@@ -769,6 +863,7 @@ achieves, since every snippet selector is scoped to `.markdown-rendered`,
 | --- | --- |
 | `parse.test.ts` | Every token type, in both observed orderings. Tasks in code fences excluded. Every status character. |
 | `roundtrip.test.ts` | **The corpus test.** One assertion per line of `tests/fixtures/vault-corpus.txt`, all 105. |
+| `fixtures.test.ts` | **Grammar coverage of the fixture**, asserted independently of its content, so the fixture can be replaced without losing coverage. |
 | `serialise.test.ts` | Canonical insertion order for newly added tokens. Whitespace handling on token removal. |
 | `mutate.test.ts` | Each mutation changes only what it should. Priority normal removes the glyph. Completing adds the done date once, not twice. |
 | `rank.test.ts` | Property test: any sequence of moves yields a consistent total order with no collisions. Renormalisation preserves order. Insertion between adjacent ranks always succeeds. |
@@ -777,6 +872,30 @@ achieves, since every snippet selector is scoped to `.markdown-rendered`,
 
 `model/` should reach effectively full branch coverage. It is pure, it is the
 entire risk surface, and it is cheap to test.
+
+*Amended 2026-07-28. **`data/` is in the automated suite too.** This section
+originally confined Vitest to `model/` on the grounds that it was the entire risk
+surface. That was true while `data/` was empty. `TaskIndex` is now around 230 lines
+of asynchronous event handling, and a read-only review of it found five defects; a
+sixth, a scan overwriting a newer incremental result with stale text, was found by
+the first test written against it and could not have been found by reading. Jon
+approved the change.*
+
+*The mechanism is a stub for the `obsidian` module, aliased in `vitest.config.ts`,
+because the real package ships types only: its `main` is the empty string, since
+the implementation is the running app. `tests/fakeVault.ts` drives a vault the
+tests control.*
+
+| Suite | What it proves |
+| --- | --- |
+| `TaskIndex.test.ts` | Only what the metadata cache reports is indexed. Exclusions, headings, block IDs and parent lines are attached. The interleavings a manual check cannot reach: an edit landing mid-scan, two scans overlapping, a read failing, a folder moving into an excluded path, and `isFullyIndexed` staying false until both the cache has resolved and a scan has completed. |
+| `TaskWriter.test.ts` | Phase 5. Writes touch one line. A refused write leaves the file byte-identical. |
+
+*Two limits worth stating. The stub is not Obsidian, so a test can only prove
+`TaskIndex` behaves correctly given the cache contract, never that the contract was
+read right; the per-phase manual gates in 8.2 remain the check on that. And the
+stub must stay minimal: the more of Obsidian it grows, the more the tests prove the
+stub.*
 
 ### 8.2 Manual, per phase
 

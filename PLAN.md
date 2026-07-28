@@ -19,11 +19,17 @@ Rules that hold for every phase:
    That layer is pure and is where all the risk lives.
 2. **Run `npm test` before claiming a phase complete.** Paste the output. Do not
    assert that something passes without having seen it pass.
-3. **After any phase that writes to the vault, `git diff` the vault** and confirm
-   exactly the intended lines changed. The vault at
-   `~/Documents/Obsidian/Red Badger` is not a git repository, so before phase 5
-   run `git init && git add -A && git commit -m baseline` inside it, or take a
-   copy. **Do not skip this.** These are Jon's real notes.
+3. **Verify every vault write against a scratch vault before the live one.**
+   *Amended 2026-07-28. The original rule required `git init` inside
+   `~/Documents/Obsidian/Red Badger` before phase 5. Jon ruled that out of
+   scope: versioning his notes is not this plugin's job. The safety it bought has
+   to come from somewhere, so it comes from here instead.* Before phase 5, copy a
+   representative handful of notes into a scratch vault, point Obsidian at that,
+   and exercise the write path there. `TaskWriter` must log the before and after
+   text of every line it changes so a surprising write is visible rather than
+   inferred. Only once the scratch vault behaves does the live vault get written
+   to, and the first live write is a single task you can eyeball. **Do not skip
+   this.** These are Jon's real notes and this project does not back them up.
 4. **Commit at each gate**, one commit per phase, message `phase N: <title>`.
 5. If a phase turns out to need a decision not covered in DESIGN.md, stop and
    ask. Do not invent behaviour and do not silently widen scope.
@@ -125,11 +131,18 @@ Tasks:
 5. A temporary dev command `Task Master: dump index stats` logging counts by
    status, by tag, and by file.
 
-**Gate:** the dump reports 81 open and 24 done. Cross-check with:
+**Gate:** the dump reports **80 open and 24 done**. Cross-check with:
 
 ```bash
 grep -rh '^\s*- \[ \]' ~/Documents/Obsidian/Red\ Badger --include=*.md | wc -l
 ```
+
+*Amended 2026-07-28. That grep returns 81, not 80, and the gate originally
+expected the dump to match it. The difference is one line: an illustrative
+`- [ ] Verb-led task title` inside `Settings/_Vault Guide.md`, which the default
+`excludedPaths` correctly drops. The grep has no notion of exclusions, so 81 by
+grep and 80 indexed is the pass condition, not a bug. If the two ever agree,
+the exclusions have stopped working.*
 
 Then edit a task in a Daily Note and confirm the index updates without a
 reload.
@@ -158,10 +171,16 @@ Tasks:
    DESIGN.md section 6.7. Render tags as `a.tag` so `colored-tags` colours carry
    through. Render description wikilinks as working internal links.
 
-**Gate:** counts must read Focus 3, Today 2, This week 6, Blocked 1, Unsorted 70,
-Done 24. Note that 3 + 2 + 6 + 1 + 70 = 82, one more than the 81 open tasks,
-because one task in `Inbox.md` carries both `#blocked` and `#this-week`. It must
-appear in exactly one group, resolved by group order, not both.
+**Gate:** counts must read Focus 3, Today 2, This week 6, Blocked 1, Unsorted 69,
+Done 24. Note that 3 + 2 + 6 + 1 + 69 = 81, one more than the 80 indexed open
+tasks, because one task in `Inbox.md` carries both `#blocked` and `#this-week`. It
+must appear in exactly one group, resolved by group order, not both.
+
+*Amended 2026-07-28, following the phase 2 gate. Every open-task figure in this
+plan below the phase 2 gate is a vault count and reads one lower in the view,
+because `excludedPaths` drops the illustrative task in `Settings/_Vault Guide.md`.
+That task is unlaned, so the minus one lands entirely on Unsorted: 70 in the vault,
+69 in the view.*
 
 Then open the view beside the current Daily Note's `## Focus` block. The three
 Focus tasks appear with the same content and a visibly similar treatment.
@@ -185,8 +204,10 @@ Tasks:
 3. Group sections stay visible when filtered, showing filtered counts.
 4. Filter state in memory only, reset on view close.
 
-**Gate:** filtering to `atlas` shows all 44 `#atlas*` tasks, including both
-subtags. Switching to `all` with `atlas` plus `focus` selected narrows correctly.
+**Gate:** filtering to `atlas` shows all 43 `#atlas*` tasks, including both
+subtags. 43 rather than the 44 in DESIGN.md section 1.1: the excluded
+`Settings/_Vault Guide.md` example carries the parent tag. See the phase 3 gate.
+Switching to `all` with `atlas` plus `focus` selected narrows correctly.
 Searching "handover" matches by description and by file path. Vault `git diff`
 still empty.
 
@@ -308,15 +329,27 @@ Tasks:
 
 1. Empty states: no tasks in the vault, no tasks matching the filter, an empty
    group.
-2. Keyboard support: `j`/`k` to move the selection, `x` to toggle complete,
-   `e` to edit, `1`-`5` to set priority, `/` to focus search.
-3. Nested task rendering, including the muted parent breadcrumb when only a child
+2. `src/view/keyboard.ts`: the bindings in DESIGN.md section 6.8, registered on
+   the view container so they never leak into the editor. Selection movement with
+   `j`/`k`, `x` to toggle complete, `e` to edit, `1`-`5` for priority, `/` to
+   focus search, `Escape` to clear.
+3. **Lane hotkeys**, per decision D7. `g` then a group key moves the selection to
+   that group, `g` then `u` moves it to Unsorted. Derive the key from the group
+   label's first letter, resolve collisions by group order, show the key in the
+   group header. Advance the selection afterwards, so working down Unsorted is
+   one repeated keystroke. Test the key-derivation function.
+4. **One-deep undo** in `controller.ts`, per decision D7 and DESIGN.md section
+   6.8. Record file, block ID or line, and previous raw line for the last write
+   only. Undo re-runs the phase 5 write path so the stale-read check still
+   applies. A cross-group drag undoes tag and rank together. Bind `Cmd+Z` in the
+   view, clear the record on view close, never persist it.
+5. Nested task rendering, including the muted parent breadcrumb when only a child
    matches the filter.
-4. Mobile sanity: the view must render and not crash. It need not be pleasant.
-5. `README.md`: what it does, how to install from source, the task format it
+6. Mobile sanity: the view must render and not crash. It need not be pleasant.
+7. `README.md`: what it does, how to install from source, the task format it
    expects, and the fact that markdown remains the source of truth.
-6. Remove the phase 2 dev command.
-7. **Update `Settings/_Vault Guide.md` in the vault.** Two passages are now false:
+8. Remove the phase 2 dev command.
+9. **Update `Settings/_Vault Guide.md` in the vault.** Two passages are now false:
    the "No drag ordering: priority markers plus `sort by priority` do the
    ranking" line under "Writing a task", and the `Actions.md` bullet under
    "Folders" describing it as the master kanban board to drag in. Replace both
@@ -324,8 +357,10 @@ Tasks:
    points at `Actions.md`. Show Jon the diff rather than committing it silently:
    it is his own documentation.
 
-**Gate:** work a real planning session in the view for twenty minutes. Then
-`git diff` the vault and read every changed line.
+**Gate:** triage ten tasks out of Unsorted using only the keyboard, then undo the
+last one and confirm the line returns to its original bytes. Then work a real
+planning session in the view for twenty minutes, `git diff` the vault, and read
+every changed line.
 
 ---
 

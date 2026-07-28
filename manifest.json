@@ -1,0 +1,9 @@
+{
+  "id": "obsidian-task-master",
+  "name": "Task Master",
+  "version": "0.0.1",
+  "minAppVersion": "1.5.0",
+  "description": "A single full-page view over every task in the vault, with manual ordering and planning lanes.",
+  "author": "Jon Yardley",
+  "isDesktopOnly": false
+}
