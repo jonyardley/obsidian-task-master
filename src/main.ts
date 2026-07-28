@@ -14,10 +14,15 @@ export default class TaskMasterPlugin extends Plugin {
     this.addChild(this.index);
 
     // Temporary, for the phase 2 gate: makes the incremental path observable.
+    // Naming the file and its own count is what distinguishes "the handler
+    // fired" from "the file was actually reindexed", since a text edit leaves
+    // the vault-wide total unchanged.
     // Remove with the dump command once the view re-renders on change.
     this.register(
-      this.index.onChange(() => {
-        console.log(`[task-master] index changed: ${this.index.snapshot().length} tasks`);
+      this.index.onChange((path) => {
+        const where = path === undefined ? 'whole vault' : path;
+        const count = path === undefined ? this.index.snapshot().length : this.index.tasksIn(path).length;
+        console.log(`[task-master] reindexed ${where}: ${count} tasks, ${this.index.snapshot().length} total`);
       }),
     );
 
@@ -55,7 +60,11 @@ export default class TaskMasterPlugin extends Plugin {
       await this.index.scanVault();
       this.scanned = true;
     }
-    const summary = summariseTasks(this.index.snapshot());
+    const tasks = this.index.snapshot();
+    const summary = summariseTasks(tasks);
+    // The tag figures in DESIGN.md section 1.1 count open tasks only, so an
+    // all-status rollup cannot be compared against them directly.
+    const openSummary = summariseTasks(tasks.filter((task) => task.status === 'open'));
 
     console.log('[task-master] index stats', {
       total: summary.total,
@@ -63,7 +72,8 @@ export default class TaskMasterPlugin extends Plugin {
       fullyIndexed: this.index.isFullyIndexed,
     });
     console.log('[task-master] by status', summary.byStatus);
-    console.log('[task-master] by tag, subtags rolled up', summary.byTagWithSubtags);
+    console.log('[task-master] by tag, open only, subtags rolled up', openSummary.byTagWithSubtags);
+    console.log('[task-master] by tag, all statuses', summary.byTagWithSubtags);
     console.log('[task-master] by file', summary.byFile);
 
     const { open = 0, done = 0 } = summary.byStatus;

@@ -19,7 +19,7 @@ import type { Task } from '../model/types';
 export class TaskIndex extends Component {
   /** Vault path -> that file's tasks, in line order. */
   private readonly byFile = new Map<string, Task[]>();
-  private readonly listeners = new Set<() => void>();
+  private readonly listeners = new Set<(path?: string) => void>();
   private fullyIndexed = false;
 
   constructor(
@@ -39,18 +39,17 @@ export class TaskIndex extends Component {
   }
 
   override onload(): void {
-    const { metadataCache, vault } = this.app;
+    const { metadataCache, vault, workspace } = this.app;
 
     this.registerEvent(
       metadataCache.on('changed', (file, _data, cache) => {
         this.reindexFile(file, cache);
-        this.emit();
       }),
     );
 
     this.registerEvent(
       vault.on('delete', (file) => {
-        if (this.byFile.delete(file.path)) this.emit();
+        if (this.byFile.delete(file.path)) this.emit(file.path);
       }),
     );
 
@@ -59,8 +58,8 @@ export class TaskIndex extends Component {
         // The tasks are unchanged but their `file` and `id` are not, and the old
         // path may have been excluded while the new one is not.
         this.byFile.delete(oldPath);
-        if (file instanceof TFile) void this.scanFile(file).then(() => this.emit());
-        else this.emit();
+        if (file instanceof TFile) void this.scanFile(file).then(() => this.emit(file.path));
+        else this.emit(oldPath);
       }),
     );
 
@@ -70,6 +69,12 @@ export class TaskIndex extends Component {
         this.emit();
       }),
     );
+
+    // `resolved` fires once, while Obsidian starts up. A plugin enabled after
+    // that never sees it, so a late load reads the state off the workspace
+    // instead. Without this the flag stays false for the whole session and the
+    // view would permanently claim an incomplete index.
+    if (workspace.layoutReady) this.fullyIndexed = true;
   }
 
   override onunload(): void {
@@ -77,10 +82,18 @@ export class TaskIndex extends Component {
     this.listeners.clear();
   }
 
-  /** Fires after every change to the index. Returns an unsubscribe function. */
-  onChange(listener: () => void): () => void {
+  /**
+   * Fires after every change to the index, with the path that changed when the
+   * change came from one file. Returns an unsubscribe function.
+   */
+  onChange(listener: (path?: string) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** That file's tasks, in line order. */
+  tasksIn(path: string): readonly Task[] {
+    return this.byFile.get(path) ?? [];
   }
 
   /** Every task in the vault, ordered by file path then line. */
@@ -122,12 +135,12 @@ export class TaskIndex extends Component {
    */
   private reindexFile(file: TFile, cache: CachedMetadata): void {
     if (isExcludedPath(file.path, this.excludedPaths())) {
-      this.byFile.delete(file.path);
+      if (this.byFile.delete(file.path)) this.emit(file.path);
       return;
     }
     void this.app.vault.cachedRead(file).then((text) => {
       this.store(file.path, tasksFrom(file.path, text, cache));
-      this.emit();
+      this.emit(file.path);
     });
   }
 
@@ -136,8 +149,8 @@ export class TaskIndex extends Component {
     else this.byFile.set(path, tasks);
   }
 
-  private emit(): void {
-    for (const listener of this.listeners) listener();
+  private emit(path?: string): void {
+    for (const listener of this.listeners) listener(path);
   }
 }
 
