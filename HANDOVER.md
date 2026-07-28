@@ -23,7 +23,7 @@ Branch `build/task-master`, three commits ahead of `main`, working tree clean.
 | Phase | Status |
 | --- | --- |
 | 0, scaffold | Code complete. **Gate not fully passed**, see below. |
-| 1, parse and serialise | Complete, gate passed. 204 tests green. |
+| 1, parse and serialise | Complete, gate passed. 236 tests green. |
 | 2 onwards | Not started. |
 
 ```
@@ -40,14 +40,15 @@ src/
 tests/
   corpus.ts                the fixture loader, used by every suite
   corpus.test.ts           guards the fixture itself
+  fixtures.test.ts         grammar coverage of the fixture, content-agnostic
   roundtrip.test.ts        the corpus test, one assertion per line
-  parse.test.ts            token semantics, plus vault-fact cross-checks
+  parse.test.ts            token semantics, plus composition cross-checks
   parse.robustness.test.ts fuzz over derived malformed input
 ```
 
 ## What blocks you right now
 
-Two things are waiting on Jon. **Do not work around either.**
+One thing is waiting on Jon. **Do not work around it.**
 
 1. **The phase 0 gate is unverified.** Obsidian was running, so
    `community-plugins.json` was deliberately left alone: editing it under a
@@ -55,13 +56,9 @@ Two things are waiting on Jon. **Do not work around either.**
    returns 0, so the plugin has never been loaded. Nobody has yet confirmed it
    opens without console errors. Jon needs to enable **Task Master** in Settings
    → Community plugins and click the ribbon icon.
-2. **The vault has no git baseline.** `~/Documents/Obsidian/Red Badger/.git` does
-   not exist. PLAN.md rule 3 requires a baseline before phase 5. Jon was offered
-   the choice of doing it now or at phase 5 and has not answered. **Phase 5 must
-   not start until this exists.** These are his real notes.
 
 Phase 2's gate also needs Obsidian running with the plugin enabled, so it is
-blocked behind item 1.
+blocked behind it.
 
 ## Decisions taken since the design was approved
 
@@ -84,6 +81,15 @@ Recorded so you neither relitigate them nor mistake them for accidents.
   native compiler. Revisit when svelte-check does.
 - **The lexer was split out of `parse.ts`** at 370 lines, past the 250-line
   signal in DESIGN.md section 5.2.
+- **The corpus fixture is invented, and the vault git baseline was dropped**,
+  both on 2026-07-28 when the GitHub remote was added. The repository is public
+  and the vault holds client detail, colleague names and personal notes, so the
+  fixture was transliterated line for line: structure, glyphs, link shapes and
+  every composition count preserved, words replaced. Pseudonyms are consistent
+  across DESIGN.md, PLAN.md and `tests/`. Separately, Jon ruled a git baseline
+  inside his vault out of scope for this project, so PLAN.md rule 3 now requires
+  a scratch vault plus before/after logging in `TaskWriter` instead. Both are
+  amended in place in DESIGN.md section 4.3 and PLAN.md rule 3.
 
 ## How parsing works, because the rest depends on it
 
@@ -117,18 +123,22 @@ Other things worth knowing before you edit the parser:
 
 ## The test suite, and what each part is for
 
-`npm test` — 204 tests, under a second.
+`npm test` — 236 tests, under a second.
 
 - `roundtrip.test.ts` is the one DESIGN.md calls "the most important correctness
   property in the system". One assertion per corpus line so a failure names the
   line. **If you break this, stop and fix it before doing anything else.**
-- `parse.test.ts` ends with a suite cross-checking the parse against the vault
-  facts documented before any code existed: 81 open, 24 done, 44 `#atlas*`,
-  lanes 6/3/2/1, 70 unlaned, one multi-lane task, both legacy block IDs. This is
-  what stops round-tripping from passing on a technicality — tiling a line
-  proves nothing about understanding it. The same numbers are the phase 2 and 3
-  gates, so keep them passing.
-- `parse.robustness.test.ts` fuzzes ~110k malformed inputs derived from the real
+- `parse.test.ts` ends with a suite cross-checking the parse against the
+  fixture's composition, stated rather than derived: 81 open, 24 done, 44
+  `#atlas*`, lanes 6/3/2/1, 70 unlaned, one multi-lane task, both legacy block
+  IDs. This is what stops round-tripping from passing on a technicality — tiling
+  a line proves nothing about understanding it. The equivalent numbers for the
+  live vault are checked by grep at the phase 2 and 3 gates instead, since they
+  drift as soon as Jon ticks a box.
+- `fixtures.test.ts` asserts the fixture still exercises every construct the
+  grammar admits, naming no tag, person or path. It is what made replacing the
+  corpus with invented content safe. Extend it before extending the grammar.
+- `parse.robustness.test.ts` fuzzes ~110k malformed inputs derived from the
   corpus. Invariants are only "never throws" and "never loses a byte"; it makes
   no claim that mangled input is understood. It ends with a guard asserting the
   suite did not pass vacuously, because its helper returns null both for
@@ -156,7 +166,7 @@ Each of these cost time to find. None is obvious.
 ## Commands
 
 ```bash
-npm test                # 204 tests
+npm test                # 236 tests
 npm run check           # tsc over src, tsc over tests, svelte-check
 npm run dev             # watch build, output lands in the vault via the symlink
 npm run build           # check, then a minified production bundle
@@ -164,8 +174,8 @@ npm run build           # check, then a minified production bundle
 
 ## Start here
 
-1. Ask Jon to clear the two blockers above. Until the plugin loads, phase 2
-   cannot be gated.
+1. Ask Jon to clear the blocker above. Until the plugin loads, phase 2 cannot be
+   gated.
 2. Then phase 2, indexing, per PLAN.md. `TaskIndex.ts` takes task lines from
    `ListItemCache` entries where `task !== undefined`, which gets correct
    handling of code fences and nesting for free — do not sweep with a regex.

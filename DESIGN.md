@@ -16,6 +16,13 @@ Companion document: [PLAN.md](PLAN.md).
 
 Target vault: `~/Documents/Obsidian/Red Badger`. Measured on 2026-07-28.
 
+*Amended 2026-07-28. This repository is public, so every domain tag, page name
+and person below is a pseudonym, mapped consistently here, in PLAN.md and in
+`tests/fixtures/vault-corpus.txt`. The counts, the structure and the conventions
+are the real ones; only the words changed. Lane tags (`#focus`, `#today`,
+`#this-week`, `#blocked`) are unchanged, because they are configuration this
+plugin reads rather than anything identifying.*
+
 | Metric | Value |
 | --- | --- |
 | Markdown files (excluding `.obsidian`) | 53 |
@@ -63,7 +70,7 @@ anything.
 Exactly one open task carries two lane tags, in `Inbox.md`:
 
 ```
-- [ ] [[Ada Fenwick]]: review for Beacon & Wren ⏫ 📅 2026-07-03 #crew #blocked #this-week
+- [ ] [[Ada Fenwick]]: reviews for Beacon & Wren ⏫ 📅 2026-07-03 #crew #blocked #this-week
 ```
 
 Keep it as a test case rather than tidying it up. Multi-lane conflict handling
@@ -407,9 +414,18 @@ For every task line in the vault:
 serialise(parse(line)) === line
 ```
 
-`tests/fixtures/vault-corpus.txt` contains all 105 distinct task lines from the
-live vault and exists for exactly this test. It must be run as a table test with
-one assertion per line, so a failure names the offending line.
+`tests/fixtures/vault-corpus.txt` contains 105 task lines and exists for exactly
+this test. It must be run as a table test with one assertion per line, so a
+failure names the offending line.
+
+*Amended 2026-07-28. The fixture was originally a verbatim capture of the live
+vault. This repository is public and the vault holds client detail, colleague
+names and personal notes, so the capture was transliterated line for line into
+invented content: token structure, indentation, glyphs, link shapes and every
+composition count are preserved, only the words changed. `tests/fixtures.test.ts`
+asserts the grammar coverage that swap had to keep, and the live-vault counts now
+live in the phase 2 and 3 gates in PLAN.md, checked by grep against the real
+vault, rather than in a unit test that would drift the moment Jon ticks a box.*
 
 When a line does not round-trip, `roundTrips` is set false. Such a task is
 indexed and displayed, but every mutation is refused and the row offers only
@@ -562,7 +578,7 @@ src/
 
 styles.css                 all scoped under .task-master-view
 tests/
-  fixtures/vault-corpus.txt   105 real task lines
+  fixtures/vault-corpus.txt   105 task lines, invented, see 4.3
   *.test.ts
 ```
 
@@ -838,6 +854,7 @@ on view close, and never persisted.
 | --- | --- |
 | `parse.test.ts` | Every token type, in both observed orderings. Tasks in code fences excluded. Every status character. |
 | `roundtrip.test.ts` | **The corpus test.** One assertion per line of `tests/fixtures/vault-corpus.txt`, all 105. |
+| `fixtures.test.ts` | **Grammar coverage of the fixture**, asserted independently of its content, so the fixture can be replaced without losing coverage. |
 | `serialise.test.ts` | Canonical insertion order for newly added tokens. Whitespace handling on token removal. |
 | `mutate.test.ts` | Each mutation changes only what it should. Priority normal removes the glyph. Completing adds the done date once, not twice. |
 | `rank.test.ts` | Property test: any sequence of moves yields a consistent total order with no collisions. Renormalisation preserves order. Insertion between adjacent ranks always succeeds. |

@@ -19,11 +19,17 @@ Rules that hold for every phase:
    That layer is pure and is where all the risk lives.
 2. **Run `npm test` before claiming a phase complete.** Paste the output. Do not
    assert that something passes without having seen it pass.
-3. **After any phase that writes to the vault, `git diff` the vault** and confirm
-   exactly the intended lines changed. The vault at
-   `~/Documents/Obsidian/Red Badger` is not a git repository, so before phase 5
-   run `git init && git add -A && git commit -m baseline` inside it, or take a
-   copy. **Do not skip this.** These are Jon's real notes.
+3. **Verify every vault write against a scratch vault before the live one.**
+   *Amended 2026-07-28. The original rule required `git init` inside
+   `~/Documents/Obsidian/Red Badger` before phase 5. Jon ruled that out of
+   scope: versioning his notes is not this plugin's job. The safety it bought has
+   to come from somewhere, so it comes from here instead.* Before phase 5, copy a
+   representative handful of notes into a scratch vault, point Obsidian at that,
+   and exercise the write path there. `TaskWriter` must log the before and after
+   text of every line it changes so a surprising write is visible rather than
+   inferred. Only once the scratch vault behaves does the live vault get written
+   to, and the first live write is a single task you can eyeball. **Do not skip
+   this.** These are Jon's real notes and this project does not back them up.
 4. **Commit at each gate**, one commit per phase, message `phase N: <title>`.
 5. If a phase turns out to need a decision not covered in DESIGN.md, stop and
    ask. Do not invent behaviour and do not silently widen scope.

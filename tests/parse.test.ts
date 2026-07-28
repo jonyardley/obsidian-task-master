@@ -258,9 +258,9 @@ describe('the 🔗 context-link convention', () => {
 
 describe('inline wikilinks in the description', () => {
   it('keeps an inline wikilink in the description rather than treating it as context', () => {
-    const line = '- [ ] Chase Harry to complete the review for [[Ada Fenwick]] #crew';
+    const line = '- [ ] Chase Milo to complete the review for [[Ada Fenwick]] #crew';
     const task = parse(line);
-    expect(task.description).toBe('Chase Harry to complete the review for [[Ada Fenwick]]');
+    expect(task.description).toBe('Chase Milo to complete the review for [[Ada Fenwick]]');
     expect(task.contextLinks).toEqual([]);
     expect(task.tags).toEqual(['crew']);
     expect(serialiseTask(task)).toBe(line);
@@ -275,18 +275,18 @@ describe('inline wikilinks in the description', () => {
   });
 
   it('keeps a description that opens with a wikilink', () => {
-    const line = '- [ ] [[Ada Fenwick]]: review for Beacon & Wren ⏫ 📅 2026-07-03 #crew';
+    const line = '- [ ] [[Ada Fenwick]]: reviews for Beacon & Wren ⏫ 📅 2026-07-03 #crew';
     const task = parse(line);
-    expect(task.description).toBe('[[Ada Fenwick]]: review for Beacon & Wren');
+    expect(task.description).toBe('[[Ada Fenwick]]: reviews for Beacon & Wren');
     expect(task.priority).toBe(1);
     expect(serialiseTask(task)).toBe(line);
   });
 
   it('distinguishes inline wikilinks from a later 🔗 run on the same line', () => {
     const line =
-      '- [ ] Complete Ray\'s review and share feedback with [[Ada Fenwick]] #crew 🔗 [[Meetings/2026-05-08 Ada - Sam|source]]';
+      '- [ ] Complete Ravi\'s review and share feedback with [[Ada Fenwick]] #crew 🔗 [[Meetings/2026-05-08 Ada - Sam|source]]';
     const task = parse(line);
-    expect(task.description).toBe("Complete Ray's review and share feedback with [[Ada Fenwick]]");
+    expect(task.description).toBe("Complete Ravi's review and share feedback with [[Ada Fenwick]]");
     expect(task.contextLinks).toHaveLength(1);
     expect(task.contextLinks[0]?.target).toBe('Meetings/2026-05-08 Ada - Sam');
     expect(serialiseTask(task)).toBe(line);
@@ -418,7 +418,7 @@ describe('edge cases', () => {
 
   it('treats a leading number as description text, not a list marker', () => {
     // "10." is part of the text. See PLAN.md phase 1.
-    const line = '    - [ ] 10. Get canonical Log Analytics KQL query #atlas/docs 🔼';
+    const line = '    - [ ] 10. Get canonical Log Analytics KQL query #atlas/support-documentation 🔼';
     const task = parse(line);
     expect(task.description).toBe('10. Get canonical Log Analytics KQL query');
     expect(task.indent).toBe('    ');
@@ -437,11 +437,17 @@ describe('edge cases', () => {
   });
 });
 
-describe('parsed corpus agrees with the documented vault facts', () => {
+describe('parsed corpus agrees with the fixture composition', () => {
   // Independent cross-check. The round-trip suite proves the layout tiles each
-  // line; these numbers prove the line was actually understood. Every figure
-  // comes from DESIGN.md section 1.1 and the PLAN.md reference table, counted by
-  // hand from the vault before any of this code existed.
+  // line; these numbers prove the line was actually understood, since tiling a
+  // line proves nothing about understanding it.
+  //
+  // The figures are stated here rather than derived from the parse, so a parser
+  // that silently drops a tag or misreads a status breaks this suite. They
+  // describe tests/fixtures/vault-corpus.txt, which mirrors the token structure
+  // of the live vault as counted by hand on 2026-07-28. The equivalent numbers
+  // for the live vault are checked by grep at the phase 2 and 3 gates in
+  // PLAN.md, where they belong: they drift the moment Jon ticks a box.
   const tasks = corpusLines().map(parse);
   const open = tasks.filter((t) => t.status === 'open');
   const LANES = ['focus', 'today', 'this-week', 'blocked'];
@@ -456,10 +462,10 @@ describe('parsed corpus agrees with the documented vault facts', () => {
   });
 
   it('finds 44 open tasks under #atlas or a subtag', () => {
-    const coast = open.filter((t) =>
+    const atlas = open.filter((t) =>
       t.tags.some((tag) => tag === 'atlas' || tag.startsWith('atlas/')),
     );
-    expect(coast).toHaveLength(44);
+    expect(atlas).toHaveLength(44);
   });
 
   it.each([
