@@ -1,0 +1,28 @@
+{
+  "extends": "@tsconfig/svelte/tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    // svelte-check resolves .svelte imports from .ts files through a virtual
+    // JavaScript module, which TS7016 rejects unless JS is allowed.
+    "allowJs": true,
+    "checkJs": false,
+    "verbatimModuleSyntax": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    // No ambient Node types in src/. The plugin ships to mobile, where there is
+    // no Node, and src/model/ must stay pure per DESIGN.md section 5.2. Tests get
+    // Node types via tsconfig.tests.json instead.
+    "types": []
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte"]
+}
