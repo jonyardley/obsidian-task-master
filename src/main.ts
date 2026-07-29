@@ -1,31 +1,29 @@
 import { Notice, Plugin } from 'obsidian';
+import { TaskMasterController } from './controller';
+import { Store } from './data/Store';
 import { TaskIndex } from './data/TaskIndex';
 import { summariseTasks } from './model/summarise';
-import { DEFAULT_SETTINGS } from './settings';
 import { TaskMasterView, VIEW_TYPE_TASK_MASTER } from './view/TaskMasterView';
 
 export default class TaskMasterPlugin extends Plugin {
   private index!: TaskIndex;
-  private scanned = false;
+  private controller!: TaskMasterController;
 
   override async onload(): Promise<void> {
-    // FIXME(#3): defaults stand in until Store lands in phase 4.
-    this.index = new TaskIndex(this.app, () => DEFAULT_SETTINGS.excludedPaths);
+    const store = await Store.load({
+      loadData: () => this.loadData(),
+      saveData: (data) => this.saveData(data),
+      dataDir: this.manifest.dir,
+      adapter: this.app.vault.adapter,
+    });
+
+    this.index = new TaskIndex(this.app, () => store.settings.excludedPaths);
     this.addChild(this.index);
 
-    // FIXME(#2): temporary, for the phase 2 gate. Naming the file distinguishes
-    // "the handler fired" from "the file was reindexed", since a text edit leaves
-    // the vault-wide total unchanged either way.
-    this.register(
-      this.index.onChange((path) => {
-        const total = this.index.snapshot().length;
-        const scope =
-          path === undefined ? 'whole vault' : `${path}: ${this.index.tasksIn(path).length} tasks`;
-        console.log(`[task-master] reindexed ${scope}, ${total} total`);
-      }),
-    );
+    this.controller = new TaskMasterController(this.app, this.index, store);
+    this.addChild(this.controller);
 
-    this.registerView(VIEW_TYPE_TASK_MASTER, (leaf) => new TaskMasterView(leaf));
+    this.registerView(VIEW_TYPE_TASK_MASTER, (leaf) => new TaskMasterView(leaf, this.controller));
 
     this.addRibbonIcon('list-checks', 'Task Master', () => {
       void this.activateView();
@@ -43,19 +41,18 @@ export default class TaskMasterPlugin extends Plugin {
       id: 'dump-index-stats',
       name: 'Dump index stats',
       callback: () => {
-        void this.dumpIndexStats();
+        this.dumpIndexStats();
       },
     });
   }
 
-  /** FIXME(#2): temporary, for the phase 2 gate in PLAN.md. */
-  private async dumpIndexStats(): Promise<void> {
-    // Scan once only: re-scanning per dump would mask a broken incremental
-    // handler, which is half of what the phase 2 gate checks.
-    if (!this.scanned) {
-      this.scanned = true;
-      await this.index.scanVault();
-    }
+  /**
+   * FIXME(#2): temporary, for the phase 2 and 3 gates in PLAN.md.
+   *
+   * Deliberately does not scan: opening the view does that, and re-scanning here
+   * would mask a broken incremental handler, which is half of what the gates check.
+   */
+  private dumpIndexStats(): void {
     const tasks = this.index.snapshot();
     const summary = summariseTasks(tasks);
     // The tag figures in DESIGN.md section 1.1 count open tasks only, so an
@@ -71,6 +68,10 @@ export default class TaskMasterPlugin extends Plugin {
     console.log('[task-master] by tag, open only, subtags rolled up', openSummary.byTagWithSubtags);
     console.log('[task-master] by tag, all statuses', summary.byTagWithSubtags);
     console.log('[task-master] by file', summary.byFile);
+    console.log(
+      '[task-master] sections',
+      this.controller.snapshot().sections.map((section) => `${section.label}: ${section.count}`),
+    );
 
     const { open = 0, done = 0 } = summary.byStatus;
     new Notice(`Task Master: ${open} open, ${done} done, ${summary.total} indexed`);

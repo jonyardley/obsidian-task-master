@@ -182,6 +182,22 @@ because `excludedPaths` drops the illustrative task in `Settings/_Vault Guide.md
 That task is unlaned, so the minus one lands entirely on Unsorted: 70 in the vault,
 69 in the view.*
 
+*Amended 2026-07-28, during phase 3. **Blocked reads 0, not 1**, and This week
+reads 6. The figures above are tag counts, which is why they sum to 81: the one
+multi-lane task is counted under both of its lanes. In the view it appears once,
+resolved by group order, and the seeded order in DESIGN.md section 4.4 puts This
+week (order 2) before Blocked (order 3), so This week is where it lands and its 6
+already includes it. The pass condition is Focus 3, Today 2, This week 6, Blocked
+0, Unsorted 69, Done 24, summing to exactly the 80 indexed open tasks. If Jon
+would rather blocked work surfaced in its own lane, that is a group reorder in
+phase 7, not a grouping change.*
+
+*Also, the "`git diff` on the vault must be empty" step no longer applies: rule 3
+above dropped the vault git baseline as out of scope. Phase 3 cannot write anyway,
+since `TaskWriter` does not exist until phase 5 and the controller holds no write
+path. Collapse state goes to `data.json`, which is inside the plugin folder and not
+a note.*
+
 Then open the view beside the current Daily Note's `## Focus` block. The three
 Focus tasks appear with the same content and a visibly similar treatment.
 Toggle Obsidian between light and dark, and toggle all three CSS snippets off,

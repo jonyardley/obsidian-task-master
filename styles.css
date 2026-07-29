@@ -6,14 +6,200 @@
   .cm-content or .task-list-kanban-view) cannot affect the plugin.
 
   Colours come from Obsidian's own CSS variables, so Minimal light and dark both
-  work without a second stylesheet. See DESIGN.md section 6.7.
+  work without a second stylesheet. The treatments below are the table in
+  DESIGN.md section 6.7, which reproduces the visual grammar of
+  tasks-readable.css.
 */
 
 .task-master-view .tm-root {
-  padding: 1rem 1.25rem;
+  padding: 1rem 1.25rem 4rem;
+  color: var(--text-normal);
+  max-width: 60rem;
+}
+
+.task-master-view .tm-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75em;
+  font-size: 0.75em;
+  color: var(--text-muted);
+  padding-bottom: 0.5rem;
+}
+
+.task-master-view .tm-indexing {
+  color: var(--text-faint);
+}
+
+.task-master-view .tm-empty {
+  color: var(--text-muted);
+  max-width: 34rem;
+}
+
+/* ── group sections ── */
+
+.task-master-view .tm-group {
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.task-master-view .tm-group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  width: 100%;
+  padding: 0.5rem 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.task-master-view .tm-group-header:hover {
+  background: var(--background-secondary);
+}
+
+.task-master-view .tm-chevron {
+  color: var(--text-faint);
+  width: 1em;
+}
+
+.task-master-view .tm-group-label {
+  flex: 1;
+}
+
+.task-master-view .tm-group-count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+
+.task-master-view .tm-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.task-master-view .tm-rows > li + li {
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.task-master-view .tm-done-date {
+  font-size: 0.75em;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0.75rem 0 0.25rem;
+}
+
+.task-master-view .tm-show-all {
+  font-size: 0.75em;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0.4rem 0;
+  color: var(--interactive-accent);
+  cursor: pointer;
+}
+
+/* ── task rows ── */
+
+.task-master-view .tm-row {
+  padding: 10px 0;
+}
+
+.task-master-view .tm-row-main {
+  display: flex;
+  align-items: baseline;
+  line-height: 1.5;
+}
+
+.task-master-view .tm-row-main input[type='checkbox'] {
+  margin-right: 0.55em;
+  flex: none;
+}
+
+.task-master-view .tm-description {
   color: var(--text-normal);
 }
 
-.task-master-view .tm-placeholder {
+.task-master-view .tm-row-done .tm-description {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+/* A cancelled task must not read as a completed one. See DESIGN.md section 4.4. */
+.task-master-view .tm-row-cancelled .tm-description {
+  text-decoration-style: dotted;
+  font-style: italic;
+}
+
+.task-master-view .tm-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  font-size: 0.75em;
+  /* Aligns under the description: the checkbox width plus its margin. */
+  padding-left: calc(1em + 0.55em);
+}
+
+/*
+  Tags are plain coloured text, never pills, and are rendered as a.tag so the
+  colored-tags plugin's custom properties carry through. See DESIGN.md section 9.
+*/
+.task-master-view .tm-row-meta a.tag {
+  opacity: 0.65;
+  margin-right: 0.4em;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Emoji ignore font-size, so they are toned down rather than shrunk. */
+.task-master-view .tm-glyph {
+  opacity: 0.55;
+  filter: grayscale(1);
+  margin-right: 0.4em;
+  white-space: nowrap;
+}
+
+.task-master-view .tm-context-link {
+  font-size: 0.8em;
+  opacity: 0.6;
+  margin-right: 0.5em;
+}
+
+.task-master-view .tm-description a {
+  color: var(--link-color, var(--interactive-accent));
+}
+
+.task-master-view .tm-warning {
+  color: var(--text-muted);
+  margin-right: 0.4em;
+  cursor: help;
+}
+
+.task-master-view .tm-open {
+  font-size: inherit;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.task-master-view .tm-row:hover .tm-open,
+.task-master-view .tm-open:focus-visible {
+  opacity: 1;
+}
+
+.task-master-view .tm-row-locked .tm-open {
+  opacity: 1;
   color: var(--text-muted);
 }

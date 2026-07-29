@@ -33,21 +33,27 @@ notes. That fact drives most of the rules below.
 ```text
 src/
   main.ts                  plugin entry: registerView, commands, ribbon, settings
-  controller.ts            the only thing the view calls; owns Index, Writer,
-                           Store and the one-deep undo record
-  settings.ts              defaults; the settings tab lands in phase 4
+  controller.ts            the only thing the view calls; owns Index and Store,
+                           and later Writer and the one-deep undo record
+  settings.ts              defaults and the seeded groups; the tab lands in phase 4
   model/                   pure. no Obsidian imports. all the tests live here.
     types.ts               Task, Segment, GroupDef, StoreData
     tokens.ts              the lexer: one reader per metadata token
     parse.ts               line -> Task
     serialise.ts           Task -> line
+    group.ts               lane assignment, multi-lane conflict resolution
+    filter.ts              sorting and section assembly
+    inline.ts              description -> text and link parts, for rendering
     paths.ts               excludedPaths matching, at a folder boundary
     summarise.ts           counts by status, tag and file, with subtag rollup
   data/                    the only place that touches the vault
     TaskIndex.ts           scan, incremental update, emit snapshots
+    Store.ts               data.json: defaults, repair, corrupt-file quarantine
   view/
     TaskMasterView.ts      ItemView shell, mounts the Svelte root
-    App.svelte             placeholder, renders "Task Master"
+    App.svelte             header, sections, empty state
+    GroupSection.svelte    collapsible header, rows, Done date subheadings
+    TaskRow.svelte         the two-line row
 tests/
   fixtures/vault-corpus.txt   105 task lines, invented, see DESIGN.md 4.3
   corpus.ts                the fixture loader, used by every suite
@@ -56,9 +62,13 @@ tests/
   roundtrip.test.ts        the corpus test, one assertion per line
   parse.test.ts            token semantics, plus composition cross-checks
   parse.robustness.test.ts fuzz over derived malformed input
+  group.test.ts            lane assignment and precedence
+  filter.test.ts           sorting, section assembly, the Done cap
+  inline.test.ts           description link splitting
   paths.test.ts            excludedPaths edge cases
   summarise.test.ts        counting and subtag rollup
   TaskIndex.test.ts        scan, incremental update, races, against a fake vault
+  Store.test.ts            seeding, repair, corrupt-file quarantine
   fakeVault.ts             the fake vault; obsidian-stub.ts the module alias
 ```
 
@@ -77,7 +87,7 @@ claim about the native compiler. Revisit when svelte-check does.
 ## Commands
 
 ```bash
-npm test                # Vitest, currently 276 tests, under a second
+npm test                # Vitest, currently 361 tests, under a second
 npm run test:watch      # the same, watching
 npm run check           # tsc over src, tsc over tests, then svelte-check
 npm run dev             # watch build, output lands in the vault via the symlink
@@ -237,7 +247,7 @@ and **check it fails for the right reason first**. The mid-scan race in
 returned the file's current content rather than its content when the read began.
 An async test that cannot fail is worse than none.
 
-The eight suites and what each is for:
+The twelve suites and what each is for:
 
 - `roundtrip.test.ts` proves the round-trip guarantee. One assertion per corpus
   line so a failure names the line.
@@ -260,6 +270,14 @@ The eight suites and what each is for:
 - `paths.test.ts` and `summarise.test.ts` cover the two pure helpers `TaskIndex`
   leans on, which is how any of the indexing logic gets automated coverage at
   all.
+- `group.test.ts` and `filter.test.ts` cover lane assignment and section
+  assembly: which group a task lands in, how a multi-lane task is resolved, and
+  the ordering rules in DESIGN.md section 4.5. The phase 3 gate is these two
+  suites' numbers, read off the live vault.
+- `inline.test.ts` covers description link splitting, including a tiling
+  assertion so a rendered row cannot silently lose a character.
+- `Store.test.ts` covers `data.json`: seeding, repairing a partial file, and
+  setting a corrupt one aside rather than overwriting it.
 
 **Run `npm test` before claiming anything complete, and paste the real output.**
 "204 tests pass" from memory is not evidence. When skipping tests, say so in the
@@ -364,8 +382,12 @@ See `HANDOVER.md` for the live picture. As of 2026-07-28:
   Master".
 - Phase 1 complete, gate passed.
 - Phase 2 complete, gate passed against the live vault: 80 open, 24 done, 104
-  indexed. 276 tests green.
-- Phase 3, the read-only view, is next.
+  indexed.
+- Phase 3, the read-only view, complete. 361 tests green. The numeric half of its
+  gate is verified against the live vault: Focus 3, Today 2, This week 6, Blocked
+  0, Unsorted 69, Done 24. Blocked reads 0 rather than the 1 the gate first
+  stated; see the amendment in PLAN.md. The visual half needs Jon in Obsidian.
+- Phase 4, filtering and search, is next.
 - The remote is public and history has been scrubbed and pushed. The local
   `backup/pre-scrub-*` refs still hold the original capture, so never
   `git push --all`. See HANDOVER.md.
