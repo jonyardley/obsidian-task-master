@@ -1,3 +1,4 @@
+import { withAncestors } from './query';
 import type { Task, TaskStatus } from './types';
 
 /**
@@ -41,15 +42,4 @@ export function summariseTasks(tasks: readonly Task[]): IndexSummary {
 
 function bump(into: Record<string, number>, key: string): void {
   into[key] = (into[key] ?? 0) + 1;
-}
-
-function withAncestors(tags: readonly string[]): Set<string> {
-  const out = new Set<string>();
-  for (const tag of tags) {
-    const parts = tag.split('/');
-    for (let i = 1; i <= parts.length; i += 1) {
-      out.add(parts.slice(0, i).join('/'));
-    }
-  }
-  return out;
 }

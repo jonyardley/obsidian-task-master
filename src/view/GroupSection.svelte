@@ -7,7 +7,13 @@
     section,
     controller,
     showAllDone,
-  }: { section: Section; controller: TaskMasterController; showAllDone: boolean } = $props();
+    filtering,
+  }: {
+    section: Section;
+    controller: TaskMasterController;
+    showAllDone: boolean;
+    filtering: boolean;
+  } = $props();
 </script>
 
 <section class="tm-group" class:tm-group-done={section.kind === 'done'}>
@@ -18,7 +24,9 @@
   >
     <span class="tm-chevron">{section.collapsed ? '▸' : '▾'}</span>
     <span class="tm-group-label">{section.label}</span>
-    <span class="tm-group-count">{section.count}</span>
+    <span class="tm-group-count">
+      {section.count}{#if filtering}<span class="tm-group-total"> of {section.total}</span>{/if}
+    </span>
   </button>
 
   {#if !section.collapsed}

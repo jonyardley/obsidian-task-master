@@ -46,6 +46,9 @@ export class TaskMasterView extends ItemView {
       unmount(this.component);
       this.component = null;
     }
+    // After the unmount, so the reset does not push a snapshot into a component
+    // that is going away. The filter is UI state, not a preference: DESIGN.md 6.4.
+    this.controller.resetFilter();
     this.contentEl.removeClass('task-master-view');
     this.contentEl.empty();
   }

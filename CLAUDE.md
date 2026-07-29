@@ -35,13 +35,14 @@ src/
   main.ts                  plugin entry: registerView, commands, ribbon, settings
   controller.ts            the only thing the view calls; owns Index and Store,
                            and later Writer and the one-deep undo record
-  settings.ts              defaults and the seeded groups; the tab lands in phase 4
+  settings.ts              defaults and the seeded groups; the tab lands in phase 7
   model/                   pure. no Obsidian imports. all the tests live here.
     types.ts               Task, Segment, GroupDef, StoreData
     tokens.ts              the lexer: one reader per metadata token
     parse.ts               line -> Task
     serialise.ts           Task -> line
     group.ts               lane assignment, multi-lane conflict resolution
+    query.ts               the filter: tag matching, search, tag facets
     filter.ts              sorting and section assembly
     inline.ts              description -> text and link parts, for rendering
     paths.ts               excludedPaths matching, at a folder boundary
@@ -51,7 +52,8 @@ src/
     Store.ts               data.json: defaults, repair, corrupt-file quarantine
   view/
     TaskMasterView.ts      ItemView shell, mounts the Svelte root
-    App.svelte             header, sections, empty state
+    App.svelte             toolbar, header, sections, empty states
+    Toolbar.svelte         search, tag multi-select, any/all, sort, show done
     GroupSection.svelte    collapsible header, rows, Done date subheadings
     TaskRow.svelte         the two-line row
 tests/
@@ -63,7 +65,8 @@ tests/
   parse.test.ts            token semantics, plus composition cross-checks
   parse.robustness.test.ts fuzz over derived malformed input
   group.test.ts            lane assignment and precedence
-  filter.test.ts           sorting, section assembly, the Done cap
+  query.test.ts            tag matching, search, tag facets
+  filter.test.ts           sorting, filtering, section assembly, the Done cap
   inline.test.ts           description link splitting
   paths.test.ts            excludedPaths edge cases
   summarise.test.ts        counting and subtag rollup
@@ -87,7 +90,7 @@ claim about the native compiler. Revisit when svelte-check does.
 ## Commands
 
 ```bash
-npm test                # Vitest, currently 361 tests, under a second
+npm test                # Vitest, currently 427 tests, under a second
 npm run test:watch      # the same, watching
 npm run check           # tsc over src, tsc over tests, then svelte-check
 npm run dev             # watch build, output lands in the vault via the symlink
@@ -247,7 +250,7 @@ and **check it fails for the right reason first**. The mid-scan race in
 returned the file's current content rather than its content when the read began.
 An async test that cannot fail is worse than none.
 
-The twelve suites and what each is for:
+The thirteen suites and what each is for:
 
 - `roundtrip.test.ts` proves the round-trip guarantee. One assertion per corpus
   line so a failure names the line.
@@ -274,6 +277,11 @@ The twelve suites and what each is for:
   assembly: which group a task lands in, how a multi-lane task is resolved, and
   the ordering rules in DESIGN.md section 4.5. The phase 3 gate is these two
   suites' numbers, read off the live vault.
+- `query.test.ts` covers the toolbar's filter, table-driven: hierarchical tag
+  matching at a segment boundary, any versus all, search across description and
+  file path but not across tags or metadata, and the tag facets. `filter.test.ts`
+  then filters the whole corpus, which is the phase 4 gate one higher, at 44
+  rather than 43, because the corpus has no excluded path.
 - `inline.test.ts` covers description link splitting, including a tiling
   assertion so a rendered row cannot silently lose a character.
 - `Store.test.ts` covers `data.json`: seeding, repairing a partial file, and
@@ -383,11 +391,15 @@ See `HANDOVER.md` for the live picture. As of 2026-07-28:
 - Phase 1 complete, gate passed.
 - Phase 2 complete, gate passed against the live vault: 80 open, 24 done, 104
   indexed.
-- Phase 3, the read-only view, complete. 361 tests green. The numeric half of its
-  gate is verified against the live vault: Focus 3, Today 2, This week 6, Blocked
-  0, Unsorted 69, Done 24. Blocked reads 0 rather than the 1 the gate first
-  stated; see the amendment in PLAN.md. The visual half needs Jon in Obsidian.
-- Phase 4, filtering and search, is next.
+- Phase 3, the read-only view, complete. The numeric half of its gate is verified
+  against the live vault: Focus 3, Today 2, This week 6, Blocked 0, Unsorted 69,
+  Done 24. Blocked reads 0 rather than the 1 the gate first stated; see the
+  amendment in PLAN.md. The visual half needs Jon in Obsidian.
+- Phase 4, filtering and search, complete. 427 tests green. Its gate is verified
+  against the corpus, at 44 `#atlas*` rather than the live vault's 43; the
+  live-vault half needs Jon in Obsidian.
+- Phase 5, writes, is next, and it is the first phase where PLAN.md rule 3 bites:
+  scratch vault first.
 - The remote is public and history has been scrubbed and pushed. The local
   `backup/pre-scrub-*` refs still hold the original capture, so never
   `git push --all`. See HANDOVER.md.

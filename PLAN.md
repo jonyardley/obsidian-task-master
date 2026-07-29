@@ -30,6 +30,18 @@ Rules that hold for every phase:
    inferred. Only once the scratch vault behaves does the live vault get written
    to, and the first live write is a single task you can eyeball. **Do not skip
    this.** These are Jon's real notes and this project does not back them up.
+
+   *Amended again 2026-07-28, during phase 4. Every gate below phase 5 ends with
+   "vault `git diff` still empty", which the amendment above made impossible to run:
+   there is no git repository in the vault any more. Read those lines as **no
+   markdown file in the vault has been modified**, which is checkable without one:*
+
+   ```bash
+   find ~/Documents/Obsidian/Red\ Badger -name '*.md' -newermt '-10 minutes'
+   ```
+
+   *Nothing before phase 5 has a write path at all, so anything that lists is either
+   Jon's own typing or a bug worth stopping for.*
 4. **Commit at each gate**, one commit per phase, message `phase N: <title>`.
 5. If a phase turns out to need a decision not covered in DESIGN.md, stop and
    ask. Do not invent behaviour and do not silently widen scope.
@@ -214,7 +226,9 @@ Tasks:
 
 1. Extend `filter.ts`: tag filtering with hierarchical prefix matching, any/all
    toggle, case-insensitive substring search over description and file path.
-   Test each, table-driven.
+   Test each, table-driven. *Amended 2026-07-28, during phase 4: the filter went
+   into a new `model/query.ts` rather than into `filter.ts`, which was already at
+   the 250-line signal. See the amendment in DESIGN.md section 5.1.*
 2. `Toolbar.svelte`: search input debounced 120 ms, tag multi-select ordered by
    frequency, any/all toggle, sort selector, show-done toggle.
 3. Group sections stay visible when filtered, showing filtered counts.

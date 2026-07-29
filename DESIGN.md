@@ -558,7 +558,8 @@ src/
     mutate.ts              setStatus, setPriority, setDate, setLaneTag, setBody
     rank.ts                sparse rank allocation and renormalisation
     group.ts               assign tasks to groups, resolve multi-lane conflicts
-    filter.ts              filter, search, sort, assemble sections
+    query.ts               the toolbar's filter: tags, search, tag facets
+    filter.ts              sort and assemble sections
     inline.ts              split a description into text and link parts, for rendering
     paths.ts               excludedPaths matching, at a folder boundary
     summarise.ts           counts by status, tag and file, with subtag rollup
@@ -585,6 +586,12 @@ tests/
   fixtures/vault-corpus.txt   105 task lines, invented, see 4.3
   *.test.ts
 ```
+
+*Amended 2026-07-28, during phase 4. `filter.ts` was listed as "filter, search,
+sort, assemble sections" and reached the 250-line signal in section 5.2 with the
+sorting and assembly alone. The filter moved to `query.ts`: the filter state, its
+predicate, hierarchical tag matching and the tag facets the toolbar lists. Same
+split, and same reason, as the lexer coming out of `parse.ts` in phase 1.*
 
 ### 5.2 Boundaries
 
@@ -774,6 +781,32 @@ not a preference.
 Group sections stay visible while filtered, showing filtered counts, so Jon can
 always see the shape of his commitments even when looking at one project.
 
+*Amended 2026-07-28, during phase 4, recording four things this section left open.*
+
+1. **The filter applies to the Done section too**, so a view narrowed to one
+   project holds only that project's work, completed included. Done stays its own
+   section; only what lands in it changes.
+2. **A filtered count reads as "n of m"**, both on each group header and in the
+   view total, where m is the count with the filter ignored. Filtered counts alone
+   would tell Jon what he can see but not what he is not seeing, and this section's
+   own reason for keeping the sections visible is that he should see both.
+3. **Tag matching folds case**, because Obsidian treats `#Atlas` and `#atlas` as
+   one tag, and the multi-select offers every ancestor of every tag in the index
+   even where no task carries the ancestor on its own. Without that, a vault whose
+   tags are all `#atlas/docs` and `#atlas/migration` could not be filtered to the
+   project as a whole, which is the case this feature exists for.
+4. **The sort selector overrides `Settings.fallbackSort` for the session only.**
+   It sits in the toolbar next to the filter, so it follows the same rule as the
+   rest of the toolbar: in memory, reset when the view closes. The setting stays
+   the default the toolbar opens on. It reaches unranked open tasks only: Done stays
+   in completion-date order, and a ranked task keeps its rank.
+5. **The toolbar carries a clear-filter control**, shown only while something
+   narrows. It clears the search, the tag selection and the any/all mode, and leaves
+   the sort, matching the split in point 4. Not in the 6.2 sketch: a tag selection
+   can be narrowed to nothing by an edit elsewhere in the vault, and the way out
+   should not be to remember what was ticked. The multi-select therefore also keeps
+   a selected tag no task carries any more, listed at a count of zero.
+
 ### 6.5 Drag and drop
 
 - Drag handle only, never the whole row, so text selection still works.
@@ -881,7 +914,8 @@ on view close, and never persisted.
 | `mutate.test.ts` | Each mutation changes only what it should. Priority normal removes the glyph. Completing adds the done date once, not twice. |
 | `rank.test.ts` | Property test: any sequence of moves yields a consistent total order with no collisions. Renormalisation preserves order. Insertion between adjacent ranks always succeeds. |
 | `group.test.ts` | Lane assignment. Multi-lane conflict resolution. Unsorted membership. |
-| `filter.test.ts` | Tag prefix matching. Any versus all. Search across description and path. Unranked fallback ordering. Section assembly, the Done cap and its date subheadings. |
+| `query.test.ts` | Tag prefix matching at a segment boundary. Any versus all. Search across description and path, and not across tags or metadata. The tag facets and their ordering. |
+| `filter.test.ts` | Unranked fallback ordering and the session sort override. Section assembly with and without a filter, filtered counts against unfiltered totals, the Done cap and its date subheadings. |
 | `inline.test.ts` | A description splits into text and link parts that tile it, so the row can render working links without parsing markdown itself. |
 
 `model/` should reach effectively full branch coverage. It is pure, it is the
