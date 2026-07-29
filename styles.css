@@ -271,6 +271,57 @@
   white-space: nowrap;
 }
 
+/* ── the quick-edit controls ── */
+
+/*
+  Both controls look exactly like the glyphs they replace until the row is hovered.
+  The metadata line is a reading surface first: DESIGN.md section 6.7 keeps it
+  restrained, and seventy rows of visible buttons would not be.
+*/
+.task-master-view .tm-priority {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.task-master-view .tm-due {
+  position: relative;
+  cursor: pointer;
+}
+
+/* Overlays the glyph so a click anywhere on it opens the picker. */
+.task-master-view .tm-due input[type='date'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* An empty control is invisible until the row is hovered or it takes focus. */
+.task-master-view .tm-empty-control {
+  opacity: 0;
+}
+
+.task-master-view .tm-row:hover .tm-empty-control,
+.task-master-view .tm-empty-control:focus-within,
+.task-master-view .tm-empty-control:focus-visible {
+  opacity: 0.35;
+}
+
+.task-master-view .tm-row-locked .tm-empty-control {
+  display: none;
+}
+
+.task-master-view .tm-row-locked .tm-priority,
+.task-master-view .tm-row-locked .tm-due {
+  cursor: default;
+}
+
 .task-master-view .tm-context-link {
   font-size: 0.8em;
   opacity: 0.6;

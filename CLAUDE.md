@@ -33,14 +33,15 @@ notes. That fact drives most of the rules below.
 ```text
 src/
   main.ts                  plugin entry: registerView, commands, ribbon, settings
-  controller.ts            the only thing the view calls; owns Index and Store,
-                           and later Writer and the one-deep undo record
+  controller.ts            the only thing the view calls; owns Index, Store and
+                           Writer, and later the one-deep undo record
   settings.ts              defaults and the seeded groups; the tab lands in phase 7
   model/                   pure. no Obsidian imports. all the tests live here.
     types.ts               Task, Segment, GroupDef, StoreData
     tokens.ts              the lexer: one reader per metadata token
     parse.ts               line -> Task
     serialise.ts           Task -> line
+    mutate.ts              setStatus, setPriority, setDate; layout edits, refusable
     group.ts               lane assignment, multi-lane conflict resolution
     query.ts               the filter: tag matching, search, tag facets
     filter.ts              sorting and section assembly
@@ -48,14 +49,16 @@ src/
     paths.ts               excludedPaths matching, at a folder boundary
     summarise.ts           counts by status, tag and file, with subtag rollup
   data/                    the only place that touches the vault
-    TaskIndex.ts           scan, incremental update, emit snapshots
+    TaskIndex.ts           scan, incremental update, emit snapshots, refresh one file
+    TaskWriter.ts          the five-step write path, per-file queue, stale abort
     Store.ts               data.json: defaults, repair, corrupt-file quarantine
   view/
     TaskMasterView.ts      ItemView shell, mounts the Svelte root
     App.svelte             toolbar, header, sections, empty states
     Toolbar.svelte         search, tag multi-select, any/all, sort, show done
     GroupSection.svelte    collapsible header, rows, Done date subheadings
-    TaskRow.svelte         the two-line row
+    TaskRow.svelte         the two-line row, checkbox and quick-edit controls
+    rowMenu.ts             the right-click menu; the only view file importing Menu
 tests/
   fixtures/vault-corpus.txt   105 task lines, invented, see DESIGN.md 4.3
   corpus.ts                the fixture loader, used by every suite
@@ -64,6 +67,8 @@ tests/
   roundtrip.test.ts        the corpus test, one assertion per line
   parse.test.ts            token semantics, plus composition cross-checks
   parse.robustness.test.ts fuzz over derived malformed input
+  serialise.test.ts        canonical insertion order, whitespace on removal
+  mutate.test.ts           each mutation, plus the corpus mutated and inverted
   group.test.ts            lane assignment and precedence
   query.test.ts            tag matching, search, tag facets
   filter.test.ts           sorting, filtering, section assembly, the Done cap
@@ -71,6 +76,7 @@ tests/
   paths.test.ts            excludedPaths edge cases
   summarise.test.ts        counting and subtag rollup
   TaskIndex.test.ts        scan, incremental update, races, against a fake vault
+  TaskWriter.test.ts       one line changed, refusals leave the file byte-identical
   Store.test.ts            seeding, repair, corrupt-file quarantine
   fakeVault.ts             the fake vault; obsidian-stub.ts the module alias
 ```
@@ -90,7 +96,7 @@ claim about the native compiler. Revisit when svelte-check does.
 ## Commands
 
 ```bash
-npm test                # Vitest, currently 427 tests, under a second
+npm test                # Vitest, currently 789 tests, under a second
 npm run test:watch      # the same, watching
 npm run check           # tsc over src, tsc over tests, then svelte-check
 npm run dev             # watch build, output lands in the vault via the symlink
@@ -170,10 +176,12 @@ fenced examples.
 nothing in this project backs it up. Versioning it is explicitly out of scope, so
 the care has to live in the write path instead.
 
-- **Exercise the write path against a scratch vault first.** PLAN.md rule 3.
-  Copy a handful of notes out, point Obsidian at the copy, and only write to the
-  live vault once the scratch one behaves. The first live write is a single task
-  you can eyeball.
+- **Exercise the write path against the scratch vault first.** PLAN.md rule 3. It
+  exists now, at `~/Documents/Obsidian/Task Master Scratch`: 6 notes copied out of the
+  live vault, its own git repository with a clean baseline, and its plugin folder
+  symlinked to whichever worktree is doing the writing. Only write to the live vault
+  once the scratch one behaves, and make the first live write a single task you can
+  eyeball. Nothing from the scratch vault is ever committed here.
 - **`TaskWriter` logs the before and after text of every line it changes**, so a
   surprising write is visible rather than inferred.
 - **No mutation ever rewrites more than the single line it targets.** That is a
@@ -250,7 +258,7 @@ and **check it fails for the right reason first**. The mid-scan race in
 returned the file's current content rather than its content when the read began.
 An async test that cannot fail is worse than none.
 
-The thirteen suites and what each is for:
+The sixteen suites and what each is for:
 
 - `roundtrip.test.ts` proves the round-trip guarantee. One assertion per corpus
   line so a failure names the line.
@@ -286,6 +294,16 @@ The thirteen suites and what each is for:
   assertion so a rendered row cannot silently lose a character.
 - `Store.test.ts` covers `data.json`: seeding, repairing a partial file, and
   setting a corrupt one aside rather than overwriting it.
+- `serialise.test.ts` and `mutate.test.ts` cover the mutations. `serialise.test.ts`
+  is the two serialisation rules: where a token that was absent gets inserted, and
+  what happens to the whitespace around one that is removed. `mutate.test.ts` is the
+  semantics of each mutation, and then the mutation half of the round-trip guarantee:
+  every corpus line set and restored, byte for byte, three ways over.
+- `TaskWriter.test.ts` covers what the write path refuses. Exactly one line changes;
+  a stale line, a declined mutation and a no-op all leave the file byte-identical; a
+  block ID finds its line after the file has shifted; two writes to one file do not
+  interleave. **Its queue test only fails against a writer with no queue because
+  `FakeVault.process` yields between reading and storing.** Keep that yield.
 
 **Run `npm test` before claiming anything complete, and paste the real output.**
 "204 tests pass" from memory is not evidence. When skipping tests, say so in the
@@ -383,7 +401,7 @@ those skills invites relitigating settled decisions.
 
 ## Current state
 
-See `HANDOVER.md` for the live picture. As of 2026-07-28:
+See `HANDOVER.md` for the live picture. As of 2026-07-29:
 
 - Phase 0 complete, gate passed. The plugin is enabled in the vault, loads with
   a clean console, and the ribbon icon opens a full-page tab reading "Task
@@ -395,11 +413,15 @@ See `HANDOVER.md` for the live picture. As of 2026-07-28:
   against the live vault: Focus 3, Today 2, This week 6, Blocked 0, Unsorted 69,
   Done 24. Blocked reads 0 rather than the 1 the gate first stated; see the
   amendment in PLAN.md. The visual half needs Jon in Obsidian.
-- Phase 4, filtering and search, complete. 427 tests green. Its gate is verified
-  against the corpus, at 44 `#atlas*` rather than the live vault's 43; the
-  live-vault half needs Jon in Obsidian.
-- Phase 5, writes, is next, and it is the first phase where PLAN.md rule 3 bites:
-  scratch vault first.
+- Phase 4, filtering and search, complete and merged. Its gate is verified against the
+  corpus, at 44 `#atlas*` rather than the live vault's 43; the live-vault half needs
+  Jon in Obsidian.
+- Phase 5, writes, complete. 789 tests green. **Both halves of its gate need Jon in
+  Obsidian**, the scratch vault before the live one, and phase 6 must not start until
+  they pass.
+- Two vaults, two builds, on purpose: the live vault's plugin folder points at the main
+  checkout, which is on `main` and therefore has no write path at all, and the scratch
+  vault's points at the phase 5 worktree.
 - The remote is public and history has been scrubbed and pushed. The local
   `backup/pre-scrub-*` refs still hold the original capture, so never
   `git push --all`. See HANDOVER.md.

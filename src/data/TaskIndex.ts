@@ -112,6 +112,26 @@ export class TaskIndex extends Component {
     return [...this.byFile.keys()].sort().flatMap((path) => this.byFile.get(path) ?? []);
   }
 
+  /**
+   * Reparses one file, for the write path's stale-read abort: the line on disk did
+   * not match the index, and no Obsidian event is coming to correct that.
+   *
+   * Best effort by nature. Either the cache or the cached read may still be pre-edit
+   * at the moment an abort fires, so this can briefly pair fresh text with stale line
+   * numbers; the `changed` event that follows the edit corrects it.
+   */
+  async refresh(path: string): Promise<void> {
+    const file = this.app.vault.getFileByPath(path);
+    if (file === null) {
+      this.forget(path);
+      this.emit(path);
+      return;
+    }
+    this.touch(path);
+    await this.scanFile(file, this.scanGeneration).catch(() => undefined);
+    this.emit(path);
+  }
+
   /** Concurrent callers share one scan rather than clearing each other's results. */
   async scanVault(): Promise<void> {
     this.inFlight ??= this.runScan();
@@ -232,7 +252,10 @@ function tasksFrom(path: string, text: string, cache: CachedMetadata): Task[] {
   for (const item of cache.listItems ?? []) {
     if (item.task === undefined) continue;
     const line = item.position.start.line;
-    const raw = lines[line];
+    // A CRLF file leaves a '\r' on the end of every line, which would become part of
+    // the last description word and take a token appended after it into the middle of
+    // the line. `TaskWriter` puts the '\r' back on the line it writes.
+    const raw = lines[line]?.replace(/\r$/, '');
     if (raw === undefined) continue;
 
     const task = parseTaskLine(raw, {

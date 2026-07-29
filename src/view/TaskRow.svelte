@@ -4,6 +4,7 @@
   import { splitInline } from '../model/inline';
   import { DATE_GLYPHS, PRIORITY_GLYPHS } from '../model/tokens';
   import type { DateKind } from '../model/types';
+  import { showRowMenu } from './rowMenu';
 
   const { row, controller }: { row: Row; controller: TaskMasterController } = $props();
 
@@ -16,12 +17,15 @@
   );
   const done = $derived(task.status === 'done' || task.status === 'cancelled');
   const cancelled = $derived(task.status === 'cancelled');
+  /** The due date has its own control, so it is not in this list. */
   const dated = $derived(
-    (['due', 'done', 'cancelled'] as const).flatMap((kind) => {
+    (['done', 'cancelled'] as const).flatMap((kind) => {
       const value = task.dates[kind];
       return value === undefined ? [] : [{ kind, glyph: glyphs.get(kind) ?? '', value }];
     }),
   );
+  /** Every mutation is refused on a line that does not round-trip. DESIGN.md section 7. */
+  const editable = $derived(task.roundTrips);
 
   function follow(event: MouseEvent, action: () => void): void {
     event.preventDefault();
@@ -34,7 +38,9 @@
   class="tm-row"
   class:tm-row-done={done}
   class:tm-row-cancelled={cancelled}
-  class:tm-row-locked={!task.roundTrips}
+  class:tm-row-locked={!editable}
+  role="group"
+  oncontextmenu={(event) => follow(event, () => showRowMenu(event, task, controller))}
 >
   <div class="tm-row-main">
     <input
@@ -43,7 +49,13 @@
       checked={task.status === 'done'}
       data-task={task.statusChar}
       aria-label={task.description}
-      onclick={(event) => event.preventDefault()}
+      disabled={!editable}
+      onclick={(event) => {
+        // The checkbox never holds its own state: the write lands, the file changes,
+        // the index reparses and the row re-renders from the line on disk.
+        event.preventDefault();
+        void controller.toggleComplete(task);
+      }}
     />
     <span class="tm-description">
       {#each parts as part, index (index)}
@@ -58,7 +70,7 @@
   </div>
 
   <div class="tm-row-meta">
-    {#if !task.roundTrips}
+    {#if !editable}
       <span class="tm-warning" title="This line does not round-trip, so it is read-only here."
         >⚠</span
       >
@@ -70,9 +82,31 @@
     {#each task.tags as tag, index (index)}
       <a class="tag" href={`#${tag}`} onclick={(event) => event.preventDefault()}>#{tag}</a>
     {/each}
-    {#if priorityGlyph}
-      <span class="tm-glyph">{priorityGlyph}</span>
-    {/if}
+
+    <button
+      class="tm-glyph tm-priority"
+      class:tm-empty-control={priorityGlyph === undefined}
+      title="Cycle priority"
+      aria-label="Cycle priority"
+      disabled={!editable}
+      onclick={() => void controller.cyclePriority(task)}>{priorityGlyph ?? '⏺'}</button
+    >
+
+    <label
+      class="tm-due"
+      class:tm-empty-control={task.dates.due === undefined}
+      title={task.dates.due === undefined ? 'Set a due date' : 'Change the due date'}
+    >
+      <span class="tm-glyph">{glyphs.get('due')} {task.dates.due ?? '—'}</span>
+      <input
+        type="date"
+        value={task.dates.due ?? ''}
+        aria-label="Due date"
+        disabled={!editable}
+        onchange={(event) => void controller.setDue(task, event.currentTarget.value || null)}
+      />
+    </label>
+
     {#if cancelled && task.dates.cancelled === undefined}
       <span class="tm-glyph">{glyphs.get('cancelled')}</span>
     {/if}

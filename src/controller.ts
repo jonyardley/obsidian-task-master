@@ -1,7 +1,9 @@
-import { Component, debounce, type App } from 'obsidian';
+import { Component, Notice, debounce, type App } from 'obsidian';
 import type { Store } from './data/Store';
 import type { TaskIndex } from './data/TaskIndex';
+import type { Mutation, TaskWriter } from './data/TaskWriter';
 import { assembleSections, type Section } from './model/filter';
+import { nextPriority, setDate, setPriority, setStatus, toISODate } from './model/mutate';
 import {
   EMPTY_FILTER,
   isFiltering,
@@ -11,13 +13,15 @@ import {
   type TagFacet,
   type TagMode,
 } from './model/query';
-import type { Settings, Task } from './model/types';
+import type { Priority, Settings, Task } from './model/types';
 
 /**
- * The only thing the view calls. Owns the index and the store, hands the view a
- * snapshot, and takes intents back. See DESIGN.md section 5.2.
+ * The only thing the view calls. Owns the index, the store and the writer, hands the
+ * view a snapshot, and takes intents back. See DESIGN.md section 5.2.
  *
- * Nothing here writes to the vault. `TaskWriter` arrives in phase 5.
+ * A write needs no refresh of its own: `vault.process` makes Obsidian fire a
+ * metadata change, the index reparses that file, and the snapshot follows. See
+ * DESIGN.md section 5.4 step 5.
  */
 
 export interface ViewSnapshot {
@@ -67,6 +71,7 @@ export class TaskMasterController extends Component {
     private readonly app: App,
     private readonly index: TaskIndex,
     private readonly store: Store,
+    private readonly writer: TaskWriter,
   ) {
     super();
   }
@@ -142,6 +147,52 @@ export class TaskMasterController extends Component {
   resetFilter(): void {
     this.filter = EMPTY_FILTER;
     this.invalidate();
+  }
+
+  /** ── mutations, all of them through `TaskWriter` ── */
+
+  async toggleComplete(task: Task): Promise<void> {
+    if (task.status === 'done') {
+      await this.mutate(task, (target) => setStatus(target, 'open'));
+      return;
+    }
+    const doneDate = this.store.settings.addDoneDate ? toISODate(new Date()) : undefined;
+    await this.mutate(task, (target) => setStatus(target, 'done', doneDate));
+  }
+
+  async cyclePriority(task: Task): Promise<void> {
+    await this.setPriority(task, nextPriority(task.priority));
+  }
+
+  async setPriority(task: Task, priority: Priority): Promise<void> {
+    await this.mutate(task, (target) => setPriority(target, priority));
+  }
+
+  /** `null` clears the due date. */
+  async setDue(task: Task, value: string | null): Promise<void> {
+    await this.mutate(task, (target) => setDate(target, 'due', value));
+  }
+
+  async copyTaskText(task: Task): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(task.raw);
+      new Notice('Task copied');
+    } catch (error) {
+      console.error('[task-master] could not write to the clipboard', error);
+      new Notice('Task Master could not write to the clipboard.');
+    }
+  }
+
+  private async mutate(task: Task, mutation: Mutation): Promise<void> {
+    const outcome = await this.writer.apply(task, mutation);
+    // 'written' and 'unchanged' say nothing; 'stale' has already raised its own
+    // Notice. The other two must not be silent, or a click that does nothing leaves
+    // nothing to diagnose.
+    if (outcome.status === 'refused') {
+      new Notice('Task Master cannot edit this line. Open it in the file.');
+    } else if (outcome.status === 'missing') {
+      new Notice(`Task Master could not find ${task.file}. The view will catch up.`);
+    }
   }
 
   async openTask(task: Task): Promise<void> {
