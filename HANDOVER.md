@@ -1,7 +1,7 @@
 # Handover
 
-For an agent picking up Task Master with no prior context. Written 2026-07-28,
-after phase 3.
+For an agent picking up Task Master with no prior context. Written 2026-07-28 after
+phase 3, updated 2026-07-29 after phase 5.
 
 ## Read these first, in this order
 
@@ -18,36 +18,49 @@ marked in place with a date and a reason. Trust the current text.
 
 ## State
 
-PR #1, phases 0 to 2, is merged. Phase 3 is PR #9, on branch
-`claude/obsidian-task-master-phase-3-12f9ef`, carrying a self-review as a comment.
-Phase 4 branches off phase 3 rather than off `main`, because it builds on the view
-that PR #9 introduces. Merge #9 first.
+PRs #1, #9 and #10 are merged, so `main` carries phases 0 to 4. Phase 5 is on branch
+`claude/obsidian-task-master-phase-5-c1982b`.
 
 | Phase | Status |
 | --- | --- |
 | 0, scaffold | Complete, gate passed 2026-07-28. |
 | 1, parse and serialise | Complete, gate passed. |
 | 2, indexing | Complete, gate passed 2026-07-28. |
-| 3, read-only view | Complete, 361 tests green. Numeric gate verified against the live vault; the visual half needs Jon in Obsidian. |
-| 4, filtering and search | Complete, 427 tests green. Gate verified against the corpus; the live-vault half needs Jon in Obsidian. |
-| 5 onwards | Not started. |
+| 3, read-only view | Complete, merged. Numeric gate verified against the live vault; the visual half needs Jon in Obsidian. |
+| 4, filtering and search | Complete, merged. Gate verified against the corpus; the live-vault half needs Jon in Obsidian. |
+| 5, writes | Complete, 789 tests green. Automated half done; **both halves of its gate need Jon in Obsidian**, scratch vault first. |
+| 6 onwards | Not started. |
+
+Two vaults now, pointing at two builds, which is what lets the live one stay on
+read-only code until the write path has been exercised somewhere disposable:
+
+| Vault | Plugin folder symlinks to | Build it holds |
+| --- | --- | --- |
+| `~/Documents/Obsidian/Red Badger`, the live one | the main checkout | `main`, phases 0 to 4, no write path at all |
+| `~/Documents/Obsidian/Task Master Scratch` | the phase 5 worktree | phase 5, the first build that can write |
+
+The scratch vault is 6 notes copied out of the live one, 94 task lines, with its own
+git repository and a clean baseline commit, so `git diff` there is a real check. It is
+outside this repository and nothing in it is ever committed here.
 
 ```
 src/
   main.ts                  plugin entry, ribbon, commands, the dev dump command
-  controller.ts            owns Index and Store, hands the view a snapshot
+  controller.ts            owns Index, Store and Writer; hands the view a snapshot
   settings.ts              defaults and the four seeded groups
   view/
     TaskMasterView.ts      ItemView shell, mounts the Svelte root
     App.svelte             toolbar, header, sections, empty states
     Toolbar.svelte         search, tag multi-select, any/all, sort, show done
     GroupSection.svelte    collapsible header, rows, Done date subheadings
-    TaskRow.svelte         the two-line row
+    TaskRow.svelte         the two-line row, checkbox and quick-edit controls
+    rowMenu.ts             the right-click menu; the only view file importing Menu
   model/
     types.ts               Task, Segment, GroupDef, StoreData
     tokens.ts              the lexer: one reader per metadata token
     parse.ts               line -> Task
     serialise.ts           Task -> line
+    mutate.ts              setStatus, setPriority, setDate, all pure, all refusable
     group.ts               lane assignment, multi-lane conflict resolution
     query.ts               the filter: tag matching, search, tag facets
     filter.ts              sorting and section assembly
@@ -55,7 +68,8 @@ src/
     paths.ts               excludedPaths matching, at a folder boundary
     summarise.ts           counts by status, tag and file, with subtag rollup
   data/
-    TaskIndex.ts           scan, incremental update, emit
+    TaskIndex.ts           scan, incremental update, emit, refresh one file
+    TaskWriter.ts          the five-step write path, per-file queue, stale abort
     Store.ts               data.json: defaults, repair, corrupt-file quarantine
 tests/
   corpus.ts                the fixture loader, used by every suite
@@ -64,6 +78,8 @@ tests/
   roundtrip.test.ts        the corpus test, one assertion per line
   parse.test.ts            token semantics, plus composition cross-checks
   parse.robustness.test.ts fuzz over derived malformed input
+  serialise.test.ts        canonical insertion order, whitespace on removal
+  mutate.test.ts           each mutation, plus the corpus mutated and inverted
   group.test.ts            lane assignment and precedence
   query.test.ts            tag matching, search, tag facets
   filter.test.ts           sorting, filtering, section assembly, the Done cap
@@ -71,6 +87,7 @@ tests/
   paths.test.ts            excludedPaths edge cases
   summarise.test.ts        counting and subtag rollup
   TaskIndex.test.ts        scan, incremental update, races, against a fake vault
+  TaskWriter.test.ts       one line changed, refusals leave the file byte-identical
   Store.test.ts            seeding, repair, corrupt-file quarantine
   fakeVault.ts             a vault the tests drive
   obsidian-stub.ts         stands in for the obsidian module, aliased in vitest
@@ -78,26 +95,33 @@ tests/
 
 ## What blocks you right now
 
-Nothing blocks the code. Phase 5, writes, is next per PLAN.md, and **rule 3 in
-PLAN.md applies from here on**: a scratch vault before the live one, because phase 5
-is the first phase that writes.
+**Phase 6 must not start until the phase 5 gate has passed in Obsidian.** Phase 6
+writes block IDs into notes, so it inherits everything phase 5's gate is checking, and
+PLAN.md's opening rule is that a phase does not start before the previous gate passes.
 
-Two things need Jon at the keyboard, both in one sitting since phase 4's branch
-contains phase 3:
+Three things need Jon at the keyboard, in this order:
 
-1. The visual half of the phase 3 gate. Open the view beside the current Daily
-   Note's `## Focus` block, check the three Focus tasks read the same, then toggle
-   light and dark and all three CSS snippets off and on.
-2. The live-vault half of the phase 4 gate. Filter to `atlas` and confirm 43 open
+1. The phase 5 gate, in the scratch vault, then in the live vault. Both halves are
+   written out under the phase 5 gate in PLAN.md. The scratch vault has a git baseline,
+   so `git diff` there answers the "exactly one line changed" question directly.
+2. The visual half of the phase 3 gate, in the live vault. Open the view beside the
+   current Daily Note's `## Focus` block, check the three Focus tasks read the same,
+   then toggle light and dark and all three CSS snippets off and on.
+3. The live-vault half of the phase 4 gate. Filter to `atlas` and confirm 43 open
    tasks, switch to `all` with `atlas` plus `focus`, search "handover", and confirm
    no markdown file in the vault has been modified. There is no git repository in
    the vault to diff, so that last check is a `find -newermt`; see the second
    amendment to rule 3 in PLAN.md.
 
-**If you are working in a git worktree, `npm run dev` does not reach the vault.**
-The plugin folder in `~/Documents/Obsidian/Red Badger/.obsidian/plugins/` is a
-symlink to the main checkout, so a build from a worktree lands nowhere Obsidian
-looks. Build in the main checkout for anything that needs eyes on it in Obsidian.
+Items 2 and 3 are already deployable: the live vault's plugin folder points at the main
+checkout, which is on `main` and built.
+
+**If you are working in a git worktree, `npm run dev` does not reach the live vault.**
+The plugin folder in `~/Documents/Obsidian/Red Badger/.obsidian/plugins/` is a symlink
+to the main checkout, so a build from a worktree lands nowhere Obsidian looks for the
+live vault. The scratch vault is the other way round: its plugin folder points at the
+phase 5 worktree, deliberately, so that a build from there lands in the disposable
+vault and not in Jon's notes.
 
 Two things to know before you touch git or the remote:
 
@@ -155,13 +179,13 @@ Recorded so you neither relitigate them nor mistake them for accidents.
 - **`Store` landed in phase 3, not phase 4**, which is where the FIXME in
   `main.ts` had guessed. `TaskIndex` now reads `excludedPaths` from the persisted
   settings, closing issue #3.
-- **Nested task rendering is still open**, issue #8. Phase 3 deferred it to phase 4
-  on the grounds that its breadcrumb needs filtering to exist. Filtering exists now,
-  so it is unblocked, but phase 4 did not take it: PLAN.md's phase 4 task list and
-  gate do not mention nesting, and it is row rendering rather than filtering. It
-  needs a parent lookup over every task rather than the visible ones, a recursive
-  row, and its own gate. **It needs a call from Jon**: its own small PR next, or
-  fold it into phase 9 polish.
+- **Nested task rendering is still open**, issue #8, and **phase 5 did not take it
+  either**. Phase 3 deferred it to phase 4 on the grounds that its breadcrumb needs
+  filtering to exist; filtering exists now, so it is unblocked, but it is row rendering
+  rather than writing, it needs a parent lookup over every task rather than the visible
+  ones, a recursive row and its own gate, and nothing in phase 5 or 6 depends on it.
+  Recommended home is phase 9 polish, which is where the rest of the row's rendering
+  work sits. **Still a call for Jon**, and a cheap one to reverse either way.
 - **The corpus fixture is invented, and the vault git baseline was dropped**,
   both on 2026-07-28 when the GitHub remote was added. The repository is public
   and the vault holds client detail, colleague names and personal notes, so the
@@ -200,6 +224,50 @@ Recorded so you neither relitigate them nor mistake them for accidents.
   lines as "no markdown file in the vault has been modified" and check with
   `find -newermt`. Amended in place under PLAN.md rule 3.
 
+Phase 5 added these.
+
+- **The write path verifies the target line twice**, once before the mutation and
+  again inside the `vault.process` callback. DESIGN.md section 5.4 described one check,
+  between the read and the write, which leaves a window for Sync or Jon's own typing to
+  land in. `process` is the only place the check and the replacement cannot be
+  separated. Amended in place in section 5.4.
+- **A mutation reparses the line it produced, and refuses if the parse does not come
+  back byte-identical.** That is what makes every mutation inherit the round-trip
+  guarantee rather than restate it: `mutate.ts` edits `layout`, serialises, reparses,
+  and returns null if anything is off. A null propagates as a refusal all the way to a
+  `Notice`, and nothing is written.
+- **Canonical insertion has two anchors, not one.** DESIGN.md 4.3 rule 2 gives the
+  order; the subtlety is that a real line need not already be in it. A new token goes
+  immediately after the last token it should follow, then before the first token it
+  should precede. `#atlas 📅 2026-07-20` gaining a done date therefore lands at the end
+  of the line, which is what Obsidian Tasks does and what the vault's completed lines
+  look like; anchoring only on the first later token would put `✅` in front of the
+  `📅` it must follow.
+- **The context menu is flat, and the row's two new controls hide when unset.** Both
+  amended in place in DESIGN.md section 6.3, with the reasons: `MenuItem` has no public
+  `setSubmenu` in the 1.13 typings, and a metadata line carrying seventy visible
+  buttons would fight section 6.7. Clearing a due date is a menu action for the same
+  reason.
+- **`TaskIndex` gained a public `refresh(path)`**, which is what the stale-read abort
+  calls. Obsidian will not fire a `changed` event for a file the plugin has decided not
+  to write, so without it the view would keep showing the line it just refused.
+- **The priority control cycles normal → highest → high → medium → low → lowest.** The
+  direct-set path is the menu now and the `1`-`5` hotkeys in phase 9; the cycle is for
+  the one-click case.
+- **`Task.raw` never carries a carriage return.** `TaskIndex` strips a trailing `\r`
+  before parsing and `TaskWriter` puts it back on the line it writes, so a CRLF file
+  stays a CRLF file. Without that the `\r` becomes part of the last description word,
+  and a token appended after it lands mid-line and costs the line its `\r\n`. No file
+  in either vault has CR bytes today, checked with `grep -rlU $'\r'`; one arriving
+  through Sync from Windows would. Found by the self-review, fixed with a test at both
+  levels.
+- **`FakeVault.process` snapshots the text and then yields before storing.** Real
+  `vault.process` is atomic, but the race the per-file queue exists to prevent is
+  between one write's verify and another's write. Without the yield the queue test
+  passes against a writer that has no queue, which is the failure mode CLAUDE.md warns
+  about: an async test that cannot fail is worse than none. Checked by deleting the
+  queue and watching that one test go red.
+
 ## How parsing works, because the rest depends on it
 
 The one idea worth loading before you touch `model/`.
@@ -211,11 +279,11 @@ tokens. Token order and inter-token whitespace therefore stay properties of the
 line rather than of the model, which is what DESIGN.md section 4.3 rule 1
 requires.
 
-**Mutation in phase 5 must work by editing `task.layout`**, not by rebuilding a
-line from the scalar fields. Do it that way and every mutation inherits the
-round-trip property for free: whatever you did not touch comes back byte for
-byte. Rebuild from scalars instead and you will silently reformat lines Jon reads
-every day.
+**Mutation works by editing `task.layout`**, not by rebuilding a line from the scalar
+fields. Do it that way and every mutation inherits the round-trip property for free:
+whatever you did not touch comes back byte for byte. Rebuild from scalars instead and
+you will silently reformat lines Jon reads every day. `mutate.ts` is the worked
+example, and the corpus suite at the end of `mutate.test.ts` is what holds it to it.
 
 Other things worth knowing before you edit the parser:
 
@@ -232,7 +300,7 @@ Other things worth knowing before you edit the parser:
 
 ## The test suite, and what each part is for
 
-`npm test` — 427 tests, under a second.
+`npm test` — 789 tests, under a second.
 
 - `roundtrip.test.ts` is the one DESIGN.md calls "the most important correctness
   property in the system". One assertion per corpus line so a failure names the
@@ -257,6 +325,15 @@ Other things worth knowing before you edit the parser:
   corpus has no excluded path. It was checked red before green, by dropping the
   hierarchical half of tag matching: that reads 9 rather than 44, since only 9 of
   the corpus's open `#atlas*` lines carry the bare parent tag.
+- `mutate.test.ts` ends with the mutation half of the round-trip guarantee: every
+  corpus line has its priority set and restored, its due date set and restored, and
+  is completed and uncompleted, and each must come back byte for byte. That is 300 of
+  the suite's assertions and the reason the count jumped. Lines carrying the same
+  token twice are skipped, with their own cases above, because setting a token and
+  putting it back cannot restore two glyphs from one.
+- `TaskWriter.test.ts` is about what does *not* happen: a stale line is refused with
+  the file untouched, a mutation that declines writes nothing, a no-op writes nothing,
+  and a write logs its before and after so PLAN.md rule 3 has its record.
 
 ## Toolchain gotchas
 
@@ -280,7 +357,7 @@ Each of these cost time to find. None is obvious.
 ## Commands
 
 ```bash
-npm test                # 427 tests
+npm test                # 789 tests
 npm run check           # tsc over src, tsc over tests, svelte-check
 npm run dev             # watch build, output lands in the vault via the symlink
 npm run build           # check, then a minified production bundle
@@ -288,10 +365,10 @@ npm run build           # check, then a minified production bundle
 
 ## Start here
 
-1. Phase 4, filtering and search, per PLAN.md. `filter.ts` already assembles the
-   sections and sorts them; phase 4 adds the tag filter, the search and
-   `Toolbar.svelte` in front of it.
-2. Read the phase 4 gate first: it expects 43 `#atlas*` tasks, not the 44 in
-   DESIGN.md section 1.1, for the same exclusion reason as phase 3.
+1. Get the phase 5 gate run, scratch vault first. Until it passes, phase 6 has not
+   started, whatever the code looks like.
+2. Then phase 6, manual ordering, per PLAN.md. `rank.ts` is pure and gets tests first;
+   block-ID assignment goes into `TaskWriter`, which already has the queue and the
+   stale-read abort it needs.
 3. Commit one commit per phase, message `phase N: <title>`, and paste real test
    output rather than asserting that something passes.

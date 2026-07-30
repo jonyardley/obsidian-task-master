@@ -2,6 +2,7 @@ import { Notice, Plugin } from 'obsidian';
 import { TaskMasterController } from './controller';
 import { Store } from './data/Store';
 import { TaskIndex } from './data/TaskIndex';
+import { TaskWriter } from './data/TaskWriter';
 import { summariseTasks } from './model/summarise';
 import { TaskMasterView, VIEW_TYPE_TASK_MASTER } from './view/TaskMasterView';
 
@@ -20,7 +21,11 @@ export default class TaskMasterPlugin extends Plugin {
     this.index = new TaskIndex(this.app, () => store.settings.excludedPaths);
     this.addChild(this.index);
 
-    this.controller = new TaskMasterController(this.app, this.index, store);
+    const writer = new TaskWriter(this.app, (path) => {
+      void this.index.refresh(path);
+    });
+
+    this.controller = new TaskMasterController(this.app, this.index, store, writer);
     this.addChild(this.controller);
 
     this.registerView(VIEW_TYPE_TASK_MASTER, (leaf) => new TaskMasterView(leaf, this.controller));

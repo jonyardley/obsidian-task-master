@@ -42,6 +42,16 @@ Rules that hold for every phase:
 
    *Nothing before phase 5 has a write path at all, so anything that lists is either
    Jon's own typing or a bug worth stopping for.*
+
+   *Amended 2026-07-29, during phase 5. The scratch vault now exists, at
+   `~/Documents/Obsidian/Task Master Scratch`: `Inbox.md`, three Daily Notes, a
+   Projects note and `Settings/_Vault Guide.md`, copied out of the live vault, 94 task
+   lines across 6 files. It has its own git repository with a clean baseline commit and
+   `.obsidian/` gitignored, so `git diff` at the phase 5 gate is a real command again
+   rather than a reinterpreted one. Its plugin folder symlinks to the phase 5 worktree
+   and the live vault's symlinks to the main checkout, so the two vaults can hold
+   different builds: the live one stays on the last merged phase until the scratch one
+   has behaved.*
 4. **Commit at each gate**, one commit per phase, message `phase N: <title>`.
 5. If a phase turns out to need a decision not covered in DESIGN.md, stop and
    ask. Do not invent behaviour and do not silently widen scope.
@@ -267,6 +277,21 @@ line in one file changed, gaining ` ✅ 2026-…`. Uncomplete it and confirm the
 line returns to its original bytes. Set a priority on a task that has none, then
 clear it, and confirm the line returns to its original bytes. Confirm the Focus
 query block in the Daily Note reflects the completion.
+
+*Amended 2026-07-29, during phase 5, splitting the gate in two, because rule 3 above
+requires the scratch vault to behave before the live vault is written to at all.*
+
+*In the scratch vault, `~/Documents/Obsidian/Task Master Scratch`, which has a git
+baseline: run every step above, `git diff` after each, and check the console for the
+`[task-master] write` line recording the before and after text. Then the two refusal
+paths, which are the ones that protect the live vault: edit a task line in a note
+while the view is open, tick that row, and confirm the `Notice` reads "Task changed on
+disk, view refreshed" and `git diff` shows no change; and confirm a row whose warning
+glyph is showing offers no controls at all.*
+
+*In the live vault, only once the above is clean: point the plugin folder at the phase
+5 build, complete one task you can eyeball, and check the line with `grep` before and
+after. There is no git baseline here, so the console log is the record.*
 
 ---
 

@@ -286,3 +286,57 @@ describe('failure and concurrency', () => {
     expect(descriptions(index)).toEqual(['Fresh']);
   });
 });
+
+describe('refresh, which the write path calls when it finds a stale line', () => {
+  it('reparses a file that changed without Obsidian firing an event', async () => {
+    vault.write('Notes.md', '- [ ] Stale\n');
+    const index = indexOver(vault);
+    await index.scanVault();
+
+    // Written behind the cache's back: no `changed` event, which is exactly the
+    // situation a stale-read abort has found itself in.
+    vault.write('Notes.md', '- [ ] Fresh\n');
+    await index.refresh('Notes.md');
+
+    expect(descriptions(index)).toEqual(['Fresh']);
+  });
+
+  it('drops a file that has gone', async () => {
+    vault.write('Notes.md', '- [ ] Stale\n');
+    const index = indexOver(vault);
+    await index.scanVault();
+
+    vault.remove('Notes.md');
+    await index.refresh('Notes.md');
+
+    expect(descriptions(index)).toEqual([]);
+  });
+
+  it('tells its listeners, so the view stops showing what is no longer there', async () => {
+    vault.write('Notes.md', '- [ ] Stale\n');
+    const index = indexOver(vault);
+    await index.scanVault();
+
+    const emitted: Array<string | undefined> = [];
+    index.onChange((path) => emitted.push(path));
+    vault.write('Notes.md', '- [ ] Fresh\n');
+    await index.refresh('Notes.md');
+
+    expect(emitted).toEqual(['Notes.md']);
+  });
+});
+
+describe('line endings', () => {
+  it('strips the carriage return from a CRLF file, so it never reaches the model', async () => {
+    // Nothing in this vault uses CRLF, but a note arriving through Sync from Windows
+    // would, and a '\r' left on the end of `raw` becomes part of the last description
+    // word. A token appended after it would land mid-line and cost the line its
+    // ending. `TaskWriter` puts the '\r' back.
+    vault.write('Notes.md', '- [ ] A task\r\n- [x] Done\r\n');
+    const index = indexOver(vault);
+
+    await index.scanVault();
+
+    expect(index.snapshot().map((task) => task.raw)).toEqual(['- [ ] A task', '- [x] Done']);
+  });
+});

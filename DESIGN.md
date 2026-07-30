@@ -666,6 +666,18 @@ Every mutation follows the same sequence. `TaskWriter` owns it.
 Writes are serialised through a per-file promise queue, so two fast drags
 touching the same file cannot interleave `vault.process` calls.
 
+*Amended 2026-07-29, during phase 5. **Step 2 happens twice**: once before the
+mutation, as written above, and again inside the `vault.process` callback in step 4.
+`process` is Obsidian's atomic read-modify-write, so the callback is the only place
+where "the line still says what we think" and "the line is replaced" cannot be
+separated by an edit from Sync, from another plugin or from Jon's own typing. The
+first check is what produces the `Notice` and skips the write; the second is what
+makes the guarantee true. A mismatch inside the callback returns the data unchanged,
+so a refused write leaves the file byte-identical.*
+
+*Also: a mutation that would produce no change writes nothing at all, rather than
+rewriting a line with its own bytes.*
+
 Specific mutations:
 
 - **Complete.** Status to `x`. If `settings.addDoneDate`, append
@@ -760,6 +772,22 @@ group submenu, open in file, copy task text.
 Nested tasks: rendered indented under their parent when both are visible in the
 same group. When only a child matches the filter, it is rendered at top level
 with a muted breadcrumb showing its parent's description.
+
+*Amended 2026-07-29, during phase 5, recording three things about the quick actions.*
+
+1. **The context menu is flat, grouped into sections rather than submenus.**
+   `MenuItem` has no public `setSubmenu` in the Obsidian 1.13 typings, so a priority
+   submenu is not available to build. `setSection` gives the same grouping with
+   separators, and the current priority carries a checkmark. Move to group arrives
+   with phase 7 and will be flat for the same reason.
+2. **The metadata line gains two controls, and they are invisible until they hold a
+   value or the row is hovered.** The priority glyph is a button that cycles normal →
+   highest → high → medium → low → lowest → normal, and the due date is a native date
+   input overlaying its own glyph. Section 6.7 keeps the metadata line restrained and
+   seventy rows of visible buttons would not be, so an unset control renders at zero
+   opacity and comes up faint on hover.
+3. **Clearing a due date is a menu action, not an inline one**, because the native
+   input's own clear affordance is invisible under the glyph it sits behind.
 
 ### 6.4 Filtering and search
 

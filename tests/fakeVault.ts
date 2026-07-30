@@ -19,10 +19,28 @@ export class FakeVault {
   /** Paths whose `cachedRead` waits for `release` before resolving. */
   private readonly held = new Map<string, () => void>();
   layoutReady = false;
+  /**
+   * Runs as `process` is entered, before it reads. Lets a test land an edit in the
+   * window between a write's verifying read and its atomic callback, which is the
+   * only thing the second check inside that callback exists for.
+   */
+  beforeProcess: ((path: string) => void) | null = null;
 
   write(path: string, text: string): TFile {
     this.files.set(path, text);
     return new TFile(path);
+  }
+
+  /** Takes a file away without firing anything, as something outside Obsidian would. */
+  remove(path: string): void {
+    this.files.delete(path);
+  }
+
+  /** The current text, without going through a read. */
+  text(path: string): string {
+    const text = this.files.get(path);
+    if (text === undefined) throw new Error(`no such file: ${path}`);
+    return text;
   }
 
   /** Makes `cachedRead(path)` hang. Returns a function that lets it finish. */
@@ -59,6 +77,33 @@ export class FakeVault {
           }
           if (atCallTime === undefined) throw new Error(`no such file: ${file.path}`);
           return atCallTime;
+        },
+        getFileByPath: (path: string): TFile | null =>
+          this.files.has(path) ? new TFile(path) : null,
+        // Unlike cachedRead, a real `read` goes to disk, which is what the write
+        // path verifies against.
+        read: async (file: TFile): Promise<string> => {
+          const text = this.files.get(file.path);
+          if (text === undefined) throw new Error(`no such file: ${file.path}`);
+          return text;
+        },
+        /**
+         * Obsidian's read-modify-write, which fires `changed` once it has written.
+         *
+         * Deliberately snapshots the text and then yields before storing, so two
+         * writes to one file that are not serialised both start from the same text
+         * and the second silently loses the first. That is the race `TaskWriter`'s
+         * per-file queue exists to prevent, and without the yield a test of it
+         * could not fail.
+         */
+        process: async (file: TFile, fn: (data: string) => string): Promise<string> => {
+          this.beforeProcess?.(file.path);
+          const before = this.files.get(file.path);
+          if (before === undefined) throw new Error(`no such file: ${file.path}`);
+          await Promise.resolve();
+          const after = fn(before);
+          this.changed(file.path, after);
+          return after;
         },
         on: (name: string, handler: (...args: never[]) => void): EventRef =>
           this.subscribe(`vault:${name}`, handler),
